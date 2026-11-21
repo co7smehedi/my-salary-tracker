@@ -1,5 +1,5 @@
-const CACHE='salary-tracker-v4';
-const CORE=['./','./index.html','./style.css?v=4','./app.js?v=4','./manifest.json','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png'];
-self.addEventListener('install',e=>e.waitUntil((async()=>{const c=await caches.open(CACHE);await c.addAll(CORE);await self.skipWaiting()})()));
+const CACHE='mst-cache-v5';
+const CORE=['./','./index.html','./style.css?v=5','./app.js?v=5','./manifest.json','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png'];
+self.addEventListener('install',e=>e.waitUntil((async()=>{const c=await caches.open(CACHE);await Promise.all(CORE.map(async u=>{try{await c.add(u)}catch(err){console.warn('cache item skipped',u)}}));await self.skipWaiting()})()));
 self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})()));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;e.respondWith((async()=>{try{const r=await fetch(e.request,{cache:'no-store'});if(r.ok)(await caches.open(CACHE)).put(e.request,r.clone());return r}catch(err){const c=await caches.match(e.request);if(c)return c;if(e.request.mode==='navigate')return caches.match('./index.html');throw err}})())});
