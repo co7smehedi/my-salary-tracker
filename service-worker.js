@@ -1,1 +1,14 @@
-const CACHE='salary-tracker-v2';const ASSETS=['./','./index.html','./style.css','./app.js','./manifest.json'];self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})()));self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(c=>c||fetch(e.request).then(r=>{const copy=r.clone();caches.open(CACHE).then(x=>x.put(e.request,copy));return r}).catch(()=>caches.match('./index.html')))}));
+const CACHE='salary-tracker-v3';
+const CORE=['./','./index.html','./style.css?v=3','./app.js?v=3','./manifest.json','./icons/apple-touch-icon.png','./icons/icon-192.png','./icons/icon-512.png'];
+self.addEventListener('install',event=>{event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(CORE);await self.skipWaiting();})());});
+self.addEventListener('activate',event=>{event.waitUntil((async()=>{for(const key of await caches.keys())if(key!==CACHE)await caches.delete(key);await self.clients.claim();})());});
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET'||new URL(event.request.url).origin!==location.origin)return;
+  event.respondWith((async()=>{
+    try{
+      const response=await fetch(event.request,{cache:'no-store'});
+      if(response.ok){const cache=await caches.open(CACHE);cache.put(event.request,response.clone());}
+      return response;
+    }catch(error){const cached=await caches.match(event.request);if(cached)return cached;if(event.request.mode==='navigate')return caches.match('./index.html');throw error;}
+  })());
+});

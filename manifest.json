@@ -2,6 +2,7 @@
   "name": "My Salary Tracker",
   "short_name": "Salary Tracker",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#0b1220",
   "theme_color": "#101827",
