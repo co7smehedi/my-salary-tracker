@@ -1,78 +1,73 @@
 'use strict';
-const BASIC=25, STANDARD_HOURS=8, OT_RATE=2.77;
-const $=id=>document.getElementById(id);
-let viewDate=new Date(), records=[], editingId=null;
-const dbPromise=new Promise((resolve,reject)=>{
-  if(!('indexedDB' in window)){reject(new Error('IndexedDB is unavailable'));return;}
-  const req=indexedDB.open('salary-tracker-db',2);
-  req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains('workEntries'))db.createObjectStore('workEntries',{keyPath:'id'});};
-  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
-});
-function txRequest(mode,action){return dbPromise.then(db=>new Promise((resolve,reject)=>{
-  const tx=db.transaction('workEntries',mode),store=tx.objectStore('workEntries');let result;
-  const req=action(store);if(req){req.onsuccess=()=>result=req.result;req.onerror=()=>reject(req.error);}
-  tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error||new Error('Database transaction aborted'));
-}));}
-const allRecords=()=>txRequest('readonly',s=>s.getAll());
-const saveRecord=item=>txRequest('readwrite',s=>s.put(item));
-const removeRecord=id=>txRequest('readwrite',s=>s.delete(id));
-const money=n=>'€'+Number(n||0).toFixed(2);
-const monthKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-const localDate=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
-const dateText=s=>new Date(s+'T12:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'});
-const statusName=s=>({worked:'Worked',rest:'Rest',paid_leave:'Paid Leave',unpaid_leave:'Unpaid Leave',sick_leave:'Sick Leave',holiday:'Holiday'})[s]||s;
-const pay=r=>r.status==='worked'?BASIC+Math.max(0,Number(r.hours||0)-STANDARD_HOURS)*OT_RATE:0;
-function render(){
-  $('monthLabel').textContent=viewDate.toLocaleDateString(undefined,{month:'long',year:'numeric'});
-  const list=records.filter(r=>r.date.startsWith(monthKey(viewDate))).sort((a,b)=>b.date.localeCompare(a.date));
-  const worked=list.filter(r=>r.status==='worked');
-  const ot=worked.reduce((sum,r)=>sum+Math.max(0,Number(r.hours)-STANDARD_HOURS),0);
-  $('earned').textContent=money(list.reduce((sum,r)=>sum+pay(r),0));
-  $('workedDays').textContent=worked.length;
-  $('otHours').textContent=ot.toFixed(2)+' h';
-  $('entries').innerHTML=list.length?list.map(r=>`<div class="entry"><div><strong>${dateText(r.date)} · ${statusName(r.status)}</strong><small>${r.status==='worked'?Number(r.hours).toFixed(2)+' h · '+Math.max(0,Number(r.hours)-STANDARD_HOURS).toFixed(2)+' OT h':'No paid hours recorded'}</small></div><div><strong>${money(pay(r))}</strong><button type="button" data-edit="${r.id}">Edit</button></div></div>`).join(''):'<p class="muted">No work entries for this month.</p>';
-  document.querySelectorAll('[data-edit]').forEach(b=>b.addEventListener('click',()=>openDialog(b.dataset.edit)));
-  const today=records.find(r=>r.date===localDate());
-  $('todayStatus').textContent=today?statusName(today.status):'Not recorded';
-  $('todayHours').textContent=today&&today.status==='worked'?Number(today.hours).toFixed(2)+' hours · '+money(pay(today)):'';
+const $=id=>document.getElementById(id), BASIC=25, STANDARD=8, OT=2.77;
+const DB_NAME='salary-tracker-db', DB_VERSION=4;
+let db, viewDate=new Date(), data={work:[],payments:[],expenses:[],remittances:[],gifts:[],settings:{}}, editing={};
+const defaults={basic:25,standard:8,ot:2.77,bus:50,paidLeave:false,paidHoliday:false,bonus:2.5,language:'en',currency:'EUR'};
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const key=d=>d.slice(0,7), money=n=>fmt(n,'EUR');
+function fmt(n,c='EUR'){const x=Number(n||0);return new Intl.NumberFormat(undefined,{style:'currency',currency:c,maximumFractionDigits:2}).format(x)}
+function id(){return (crypto&&crypto.randomUUID)?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=()=>{const d=r.result;['work','payments','expenses','remittances','gifts'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})});if(!d.objectStoreNames.contains('workEntries'))d.createObjectStore('workEntries',{keyPath:'id'});};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+function storeAll(name){return new Promise((resolve,reject)=>{const t=db.transaction(name,'readonly'),r=t.objectStore(name).getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error)})}
+function put(name,item){return new Promise((resolve,reject)=>{const t=db.transaction(name,'readwrite');t.objectStore(name).put(item);t.oncomplete=()=>resolve();t.onerror=()=>reject(t.error)})}
+function del(name,itemId){return new Promise((resolve,reject)=>{const t=db.transaction(name,'readwrite');t.objectStore(name).delete(itemId);t.oncomplete=()=>resolve();t.onerror=()=>reject(t.error)})}
+async function load(){db=await openDB();for(const s of ['work','payments','expenses','remittances','gifts'])data[s]=await storeAll(s);data.settings={...defaults,...JSON.parse(localStorage.getItem('mst-settings')||'{}')};
+  // Migrate old v0.2/v0.3 work records once, without deleting original records.
+  if(!localStorage.getItem('mst-migrated-v4')){const old=await storeAll('workEntries');for(const r of old){if(!data.work.some(x=>x.date===r.date))await put('work',{...r,id:r.id||id()})}localStorage.setItem('mst-migrated-v4','yes');data.work=await storeAll('work')}
 }
-function preview(){
-  const status=$('workStatus').value,hours=Number($('hours').value||0);
-  $('hours').disabled=status!=='worked';
-  $('entryPreview').textContent='Estimated pay: '+money(status==='worked'?BASIC+Math.max(0,hours-STANDARD_HOURS)*OT_RATE:0)+' · OT: '+(status==='worked'?Math.max(0,hours-STANDARD_HOURS):0).toFixed(2)+' h';
+function statusLabel(s){return ({worked:'Worked',rest:'Rest',paid_leave:'Paid Leave',unpaid_leave:'Unpaid Leave',sick_leave:'Sick Leave',holiday:'Holiday'})[s]||s}
+function workPay(r){const s=data.settings;let base=0;if(r.status==='worked'||(r.status==='paid_leave'&&s.paidLeave)||(r.status==='holiday'&&s.paidHoliday))base=Number(s.basic);return base+(r.status==='worked'?Math.max(0,Number(r.hours||0)-Number(s.standard))*Number(s.ot):0)}
+function monthData(){const m=key(`${viewDate.getFullYear()}-${String(viewDate.getMonth()+1).padStart(2,'0')}-01`);const work=data.work.filter(x=>key(x.date)===m),payments=data.payments.filter(x=>x.month===m),expenses=data.expenses.filter(x=>key(x.date)===m),rem=data.remittances.filter(x=>key(x.date)===m),gifts=data.gifts.filter(x=>key(x.date)===m);return {m,work,payments,expenses,rem,gifts,earned:work.reduce((a,x)=>a+workPay(x),0),received:payments.reduce((a,x)=>a+Math.max(0,Number(x.amount)-Number(x.bus||0)),0),expense:expenses.reduce((a,x)=>a+Number(x.amount),0),remit:rem.reduce((a,x)=>a+Number(x.amount),0),bonus:rem.reduce((a,x)=>a+Number(x.bonusAmount||0),0)}}
+function dateLabel(d){return new Date(d+'T12:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'})}
+function safe(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function itemRow(title,sub,amount,editType,itemId){return `<div class="entry"><div><strong>${safe(title)}</strong><small>${safe(sub||'')}</small></div><div><strong>${safe(amount)}</strong><button type="button" data-edit-type="${editType}" data-edit-id="${safe(itemId)}">Edit</button></div></div>`}
+function render(){const m=monthData(),s=data.settings,cur='EUR';$('monthLabel').textContent=viewDate.toLocaleDateString(undefined,{month:'long',year:'numeric'});$('currencyTag').textContent=cur;
+  $('earned').textContent=fmt(m.earned,cur);$('received').textContent=fmt(m.received,cur);$('outstanding').textContent=fmt(m.earned-m.received,cur);$('expensesTotal').textContent=fmt(m.expense,cur);
+  $('workedDays').textContent=m.work.filter(x=>x.status==='worked').length;$('otHours').textContent=m.work.filter(x=>x.status==='worked').reduce((a,x)=>a+Math.max(0,Number(x.hours)-Number(s.standard)),0).toFixed(2)+' h';
+  $('salaryFormula').textContent=`€${Number(s.basic).toFixed(2)}/day + €${Number(s.ot).toFixed(2)} per overtime hour`;
+  const t=data.work.find(x=>x.date===today());$('todayStatus').textContent=t?statusLabel(t.status):'Not recorded';$('todayHours').textContent=t&&t.status==='worked'?`${Number(t.hours).toFixed(2)} hours · ${money(workPay(t))}`:'';
+  $('entries').innerHTML=m.work.length?m.work.sort((a,b)=>b.date.localeCompare(a.date)).map(x=>itemRow(`${dateLabel(x.date)} · ${statusLabel(x.status)}`,x.status==='worked'?`${Number(x.hours).toFixed(2)} h · ${Math.max(0,Number(x.hours)-Number(s.standard)).toFixed(2)} OT h`:'No hours',money(workPay(x)),'work',x.id)).join(''):'<p class="muted">No work entries for this month.</p>';
+  $('payments').innerHTML=m.payments.length?m.payments.sort((a,b)=>b.date.localeCompare(a.date)).map(x=>itemRow(`${dateLabel(x.date)} · ${money(x.amount)} received`,`${x.month} salary month · Bus ${money(x.bus)} · ${safe(x.note||'')}`,money(Math.max(0,x.amount-x.bus)),'payment',x.id)).join(''):'<p class="muted">No salary payments for this month.</p>';
+  $('expenseList').innerHTML=m.expenses.length?m.expenses.sort((a,b)=>b.date.localeCompare(a.date)).map(x=>itemRow(`${dateLabel(x.date)} · ${x.category}`,x.note,money(x.amount),'expense',x.id)).join(''):'<p class="muted">No expenses for this month.</p>';
+  $('remitTotal').textContent=money(m.remit);$('bonusTotal').textContent=money(m.bonus);$('remitList').innerHTML=m.rem.length?m.rem.sort((a,b)=>b.date.localeCompare(a.date)).map(x=>itemRow(`${dateLabel(x.date)} · ${x.recipient}`,`${money(x.amount)} · Fee ${money(x.fee)} · Bonus ${money(x.bonusAmount)}`,x.rate?`${(x.amount-x.fee)*x.rate+x.bonusAmount*x.rate} BDT`:'—','remit',x.id)).join(''):'<p class="muted">No transfers for this month.</p>';
+  $('giftList').innerHTML=m.gifts.length?m.gifts.sort((a,b)=>b.date.localeCompare(a.date)).map(x=>itemRow(`${dateLabel(x.date)} · ${x.person}`,x.note,fmt(x.amount,x.currency),'gift',x.id)).join(''):'<p class="muted">No money given this month.</p>';
 }
-function openDialog(id){
-  editingId=id||null;const record=id?records.find(x=>x.id===id):null;
-  $('dialogTitle').textContent=record?'Edit work entry':'Record duty';
-  $('workDate').value=record?.date||localDate();$('workStatus').value=record?.status||'worked';$('hours').value=record?.hours??8;
-  $('deleteEntry').hidden=!record;preview();$('entryDialog').showModal();
+function fillSettings(){const s=data.settings;['basic','standard','ot','bus','bonus'].forEach(k=>$(k==='basic'?'basicRate':k==='standard'?'standardHours':k==='ot'?'otRate':k==='bus'?'busAllowance':'bonusRate').value=s[k]);$('paidLeave').checked=s.paidLeave;$('paidHoliday').checked=s.paidHoliday;$('language').value=s.language;$('currency').value=s.currency}
+function show(d){$(d).showModal()}
+function closeDialogs(){document.querySelectorAll('dialog').forEach(d=>d.close())}
+function fillMonthOptions(selected){const sel=$('paymentMonth');sel.innerHTML='';for(let i=-18;i<=6;i++){const d=new Date(viewDate.getFullYear(),viewDate.getMonth()+i,1),v=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const o=document.createElement('option');o.value=v;o.textContent=d.toLocaleDateString(undefined,{month:'long',year:'numeric'});sel.append(o)}sel.value=selected||key(today())}
+function openWork(item){editing.work=item?.id||null;$('dialogTitle').textContent=item?'Edit work entry':'Record duty';$('workDate').value=item?.date||today();$('workStatus').value=item?.status||'worked';$('hours').value=item?.hours??8;$('deleteEntry').hidden=!item;previewWork();show('entryDialog')}
+function previewWork(){const status=$('workStatus').value,h=Number($('hours').value||0),s=data.settings;$('hours').disabled=status!=='worked';const paid=status==='worked'||(status==='paid_leave'&&s.paidLeave)||(status==='holiday'&&s.paidHoliday);$('entryPreview').textContent=`Estimated pay: ${money(paid?Number(s.basic)+(status==='worked'?Math.max(0,h-s.standard)*s.ot:0):0)} · OT: ${(status==='worked'?Math.max(0,h-s.standard):0).toFixed(2)} h`}
+function openPayment(item){editing.payment=item?.id||null;$('paymentTitle').textContent=item?'Edit salary payment':'Add salary payment';$('paymentDate').value=item?.date||today();fillMonthOptions(item?.month||key(today()));$('paymentAmount').value=item?.amount??'';$('paymentBus').value=item?.bus??0;$('paymentNote').value=item?.note||'';$('deletePayment').hidden=!item;show('paymentDialog')}
+function openExpense(item){editing.expense=item?.id||null;$('expenseTitle').textContent=item?'Edit expense':'Add expense';$('expenseDate').value=item?.date||today();$('expenseCategory').value=item?.category||'Food';$('expenseAmount').value=item?.amount??'';$('expenseNote').value=item?.note||'';$('deleteExpense').hidden=!item;show('expenseDialog')}
+function openRemit(item){editing.remit=item?.id||null;$('remitTitle').textContent=item?'Edit remittance':'Add remittance';$('remitDate').value=item?.date||today();$('remitRecipient').value=item?.recipient||'';$('remitAmount').value=item?.amount??'';$('remitRate').value=item?.rate??'';$('remitFee').value=item?.fee??0;$('remitBonus').value=item?.bonus??data.settings.bonus;$('remitNote').value=item?.note||'';$('deleteRemit').hidden=!item;previewRemit();show('remitDialog')}
+function previewRemit(){const a=Number($('remitAmount').value||0),fee=Number($('remitFee').value||0),rate=Number($('remitRate').value||0),b=Number($('remitBonus').value||0),bonus=Math.max(0,a-fee)*b/100;$('remitPreview').textContent=`Bonus: ${money(bonus)} · ${rate?`Estimated recipient gets ৳${((a-fee+bonus)*rate).toFixed(2)}`:'Enter actual exchange rate to estimate BDT'}`}
+function openGift(item){editing.gift=item?.id||null;$('giftTitle').textContent=item?'Edit money given':'Add money given';$('giftDate').value=item?.date||today();$('giftPerson').value=item?.person||'';$('giftCurrency').value=item?.currency||'EUR';$('giftAmount').value=item?.amount??'';$('giftNote').value=item?.note||'';$('deleteGift').hidden=!item;show('giftDialog')}
+function edit(type,itemId){const item=data[type==='work'?'work':type==='payment'?'payments':type==='expense'?'expenses':type==='remit'?'remittances':'gifts'].find(x=>x.id===itemId);if(!item)return;({work:openWork,payment:openPayment,expense:openExpense,remit:openRemit,gift:openGift})[type](item)}
+async function saveForm(e,store,build,editKey){e.preventDefault();try{const oldId=editing[editKey];await put(store,{id:oldId||id(),...build()});data[store]=await storeAll(store);editing[editKey]=null;closeDialogs();render()}catch(err){alert('Could not save. Please try again.');console.error(err)}}
+function deleteCurrent(type,store){const itemId=editing[type];if(!itemId||!confirm('Delete this record?'))return;del(store,itemId).then(async()=>{data[store]=await storeAll(store);editing[type]=null;closeDialogs();render()}).catch(e=>alert('Delete failed: '+e.message))}
+function download(name,content,type){const a=document.createElement('a'),u=URL.createObjectURL(new Blob([content],{type}));a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}
+function backup(){const payload={app:'My Salary Tracker',version:4,exportedAt:new Date().toISOString(),data,settings:data.settings};download('my-salary-tracker-backup-'+today()+'.json',JSON.stringify(payload,null,2),'application/json')}
+function csv(){const rows=[['type','date','month','description','amount','currency','extra']];data.work.forEach(x=>rows.push(['work',x.date,key(x.date),x.status,workPay(x),'EUR',x.hours]));data.payments.forEach(x=>rows.push(['salary payment',x.date,x.month,'Salary received',x.amount,'EUR','bus '+x.bus]));data.expenses.forEach(x=>rows.push(['expense',x.date,key(x.date),x.category,x.amount,'EUR',x.note||'']));data.remittances.forEach(x=>rows.push(['remittance',x.date,key(x.date),x.recipient,x.amount,'EUR',`fee ${x.fee}; bonus ${x.bonusAmount}; rate ${x.rate}`]));data.gifts.forEach(x=>rows.push(['money given',x.date,key(x.date),x.person,x.amount,x.currency,x.note||'']));const csvText=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');download('salary-tracker-'+today()+'.csv',csvText,'text/csv')}
+function printReport(){const m=monthData(),html=`<h1>My Salary Tracker — ${safe($('monthLabel').textContent)}</h1><p>Earned: ${money(m.earned)} | Received: ${money(m.received)} | Outstanding: ${money(m.earned-m.received)} | Expenses: ${money(m.expense)}</p><h2>Work</h2>${m.work.map(x=>`<p>${safe(x.date)} — ${safe(statusLabel(x.status))} — ${money(workPay(x))}</p>`).join('')}<h2>Payments</h2>${m.payments.map(x=>`<p>${safe(x.date)} — ${money(x.amount)} (bus ${money(x.bus)})</p>`).join('')}<h2>Expenses</h2>${m.expenses.map(x=>`<p>${safe(x.date)} — ${safe(x.category)} — ${money(x.amount)}</p>`).join('')}`;const w=window.open('','_blank');if(!w){alert('Allow pop-ups to print this report.');return}w.document.write(`<html><head><title>Salary report</title><style>body{font:15px Arial;padding:24px;color:#111}h1{font-size:22px}</style></head><body>${html}</body></html>`);w.document.close();w.focus();setTimeout(()=>w.print(),300)}
+const translations={bn:{'Earned this month':'এই মাসে আয়','Worked days':'কাজের দিন','Overtime':'ওভারটাইম','Received':'পেয়েছি','Outstanding':'বকেয়া','Expenses':'খরচ','Todays duty':'আজকের ডিউটি','Work entries':'কাজের রেকর্ড','Salary received':'বেতন গ্রহণ','Settings':'সেটিংস','Reports & backup':'রিপোর্ট ও ব্যাকআপ'},tr:{'Earned this month':'Bu ay kazanılan','Worked days':'Çalışılan gün','Overtime':'Fazla mesai','Received':'Alınan','Outstanding':'Kalan','Expenses':'Giderler','Todays duty':'Bugünkü görev','Work entries':'Çalışma kayıtları','Salary received':'Alınan maaş','Settings':'Ayarlar','Reports & backup':'Rapor ve yedek'},bg:{'Earned this month':'Спечелено този месец','Worked days':'Работни дни','Overtime':'Извънреден труд','Received':'Получено','Outstanding':'Дължимо','Expenses':'Разходи','Todays duty':'Днешна смяна','Work entries':'Работни записи','Salary received':'Получена заплата','Settings':'Настройки','Reports & backup':'Отчети и архив'},hi:{'Earned this month':'इस महीने की कमाई','Worked days':'काम के दिन','Overtime':'ओवरटाइम','Received':'प्राप्त','Outstanding':'बकाया','Expenses':'खर्च','Todays duty':'आज की ड्यूटी','Work entries':'काम के रिकॉर्ड','Salary received':'प्राप्त वेतन','Settings':'सेटिंग्स','Reports & backup':'रिपोर्ट और बैकअप'},el:{'Earned this month':'Κέρδη αυτόν τον μήνα','Worked days':'Ημέρες εργασίας','Overtime':'Υπερωρίες','Received':'Ληφθέντα','Outstanding':'Οφειλόμενα','Expenses':'Έξοδα','Todays duty':'Σημερινή βάρδια','Work entries':'Καταγραφές εργασίας','Salary received':'Ληφθείς μισθός','Settings':'Ρυθμίσεις','Reports & backup':'Αναφορές και αντίγραφα'}};
+function applyLanguage(){const dict=translations[data.settings.language]||{};document.querySelectorAll('.card p,.card h3,.metric span,.stats span').forEach(el=>{const k=el.textContent.trim();if(dict[k])el.textContent=dict[k]})}
+function bind(){ $('prev').onclick=()=>{viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()-1,1);render()};$('next').onclick=()=>{viewDate=new Date(viewDate.getFullYear(),viewDate.getMonth()+1,1);render()};
+  ['record','addEntry','quickAdd'].forEach(x=>$(x).onclick=()=>openWork());$('addPayment').onclick=()=>openPayment();$('addExpense').onclick=()=>openExpense();$('addRemit').onclick=()=>openRemit();$('addGift').onclick=()=>openGift();
+  document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeDialogs);
+  $('workStatus').onchange=previewWork;$('hours').oninput=previewWork;
+  $('entryForm').onsubmit=e=>saveForm(e,'work',()=>{const date=$('workDate').value,status=$('workStatus').value;const duplicate=data.work.find(x=>x.date===date&&x.id!==editing.work);if(duplicate)throw new Error('An entry already exists for this date. Edit it instead.');return {date,status,hours:status==='worked'?Number($('hours').value||0):0}},'work');
+  $('paymentForm').onsubmit=e=>saveForm(e,'payments',()=>({date:$('paymentDate').value,month:$('paymentMonth').value,amount:Number($('paymentAmount').value),bus:Number($('paymentBus').value||0),note:$('paymentNote').value.trim()}),'payment');
+  $('expenseForm').onsubmit=e=>saveForm(e,'expenses',()=>({date:$('expenseDate').value,category:$('expenseCategory').value,amount:Number($('expenseAmount').value),note:$('expenseNote').value.trim()}),'expense');
+  $('remitAmount').oninput=$('remitRate').oninput=$('remitFee').oninput=$('remitBonus').oninput=previewRemit;
+  $('remitForm').onsubmit=e=>saveForm(e,'remittances',()=>{const amount=Number($('remitAmount').value),fee=Number($('remitFee').value||0),bonus=Number($('remitBonus').value||0);return {date:$('remitDate').value,recipient:$('remitRecipient').value.trim(),amount,rate:Number($('remitRate').value)||0,fee,bonus,bonusAmount:Math.max(0,amount-fee)*bonus/100,note:$('remitNote').value.trim()}},'remit');
+  $('giftForm').onsubmit=e=>saveForm(e,'gifts',()=>({date:$('giftDate').value,person:$('giftPerson').value.trim(),currency:$('giftCurrency').value,amount:Number($('giftAmount').value),note:$('giftNote').value.trim()}),'gift');
+  $('deleteEntry').onclick=()=>deleteCurrent('work','work');$('deletePayment').onclick=()=>deleteCurrent('payment','payments');$('deleteExpense').onclick=()=>deleteCurrent('expense','expenses');$('deleteRemit').onclick=()=>deleteCurrent('remit','remittances');$('deleteGift').onclick=()=>deleteCurrent('gift','gifts');
+  document.body.addEventListener('click',e=>{const b=e.target.closest('[data-edit-type]');if(b)edit(b.dataset.editType,b.dataset.editId);const sc=e.target.closest('[data-scroll]');if(sc){const id=sc.dataset.scroll;document.getElementById(id==='top'?'top':id)?.scrollIntoView({behavior:'smooth'})}});
+  $('settingsShortcut').onclick=()=>$('settingsSection').scrollIntoView({behavior:'smooth'});$('saveSettings').onclick=()=>{data.settings={basic:Number($('basicRate').value),standard:Number($('standardHours').value),ot:Number($('otRate').value),bus:Number($('busAllowance').value),paidLeave:$('paidLeave').checked,paidHoliday:$('paidHoliday').checked,bonus:Number($('bonusRate').value),language:$('language').value,currency:$('currency').value};localStorage.setItem('mst-settings',JSON.stringify(data.settings));render();alert('Settings saved.')};
+  $('exportBtn').onclick=backup;$('csvBtn').onclick=csv;$('printBtn').onclick=printReport;$('importBtn').onclick=()=>$('restoreFile').click();
+  $('restoreFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const p=JSON.parse(await f.text());if(!p.data)throw new Error('Invalid backup file');if(!confirm('Restore backup? Existing records with matching IDs will be replaced; other records remain.'))return;for(const s of ['work','payments','expenses','remittances','gifts'])for(const x of (p.data[s]||[]))await put(s,x);if(p.settings){data.settings={...defaults,...p.settings};localStorage.setItem('mst-settings',JSON.stringify(data.settings))}for(const s of ['work','payments','expenses','remittances','gifts'])data[s]=await storeAll(s);fillSettings();render();alert('Backup restored.')}catch(err){alert('Could not restore: '+err.message)}finally{e.target.value=''}};
 }
-$('prev').addEventListener('click',()=>{viewDate.setMonth(viewDate.getMonth()-1);render();});
-$('next').addEventListener('click',()=>{viewDate.setMonth(viewDate.getMonth()+1);render();});
-['record','addEntry','quickAdd'].forEach(id=>$(id).addEventListener('click',()=>openDialog()));
-$('closeDialog').addEventListener('click',()=>$('entryDialog').close());
-$('workStatus').addEventListener('change',preview);$('hours').addEventListener('input',preview);
-$('homeTab').addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
-$('workTab').addEventListener('click',()=>$('workSection').scrollIntoView({behavior:'smooth',block:'start'}));
-$('entryForm').addEventListener('submit',async e=>{
-  e.preventDefault();
-  const date=$('workDate').value,status=$('workStatus').value,hours=status==='worked'?Number($('hours').value||0):0;
-  if(!date){alert('Please choose a date.');return;}
-  const duplicate=records.find(r=>r.date===date&&r.id!==editingId);
-  if(duplicate){alert('An entry already exists for this date. Edit the existing entry instead.');return;}
-  const item={id:editingId||((crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())),date,status,hours,updatedAt:new Date().toISOString()};
-  try{await saveRecord(item);records=await allRecords();$('entryDialog').close();render();}
-  catch(err){alert('Could not save this entry. Please try again.');console.error(err);}
-});
-$('deleteEntry').addEventListener('click',async()=>{
-  if(!editingId||!confirm('Delete this work entry?'))return;
-  try{await removeRecord(editingId);records=await allRecords();$('entryDialog').close();render();}
-  catch(err){alert('Could not delete this entry. Please try again.');console.error(err);}
-});
-(async()=>{
-  try{records=await allRecords();render();}
-  catch(err){$('entries').innerHTML='<p class="muted">Storage could not be opened. Open the app in Chrome or Safari using its HTTPS address, then reload.</p>';console.error(err);}
-  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-    navigator.serviceWorker.register('./service-worker.js?v=3',{updateViaCache:'none'}).then(reg=>reg.update()).catch(console.error);
-  }
+(async()=>{try{await load();fillSettings();bind();render();applyLanguage()}catch(e){document.body.innerHTML='<main style="padding:24px;color:white;font:16px Arial"><h2>Storage could not start</h2><p>Open this app using its GitHub Pages HTTPS address in Chrome or Safari, then reload. Your data has not been deleted.</p><p>'+safe(e.message)+'</p></main>';console.error(e)}
+if('serviceWorker'in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('./service-worker.js?v=4',{updateViaCache:'none'}).then(r=>r.update()).catch(console.error);
 })();

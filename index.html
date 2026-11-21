@@ -6,40 +6,89 @@
 <meta name="theme-color" content="#101827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Private offline-first salary and money tracker">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 <title>My Salary Tracker</title>
 </head>
 <body>
 <main class="app">
-<header class="top"><div><p class="eyebrow">PERSONAL FINANCE</p><h1>My Salary Tracker</h1></div><span class="pill">v0.3</span></header>
+<header class="top"><div><p class="eyebrow">PRIVATE • OFFLINE FIRST</p><h1>My Salary Tracker</h1></div><button class="icon-btn" id="settingsShortcut" aria-label="Settings">⚙</button></header>
 <section class="month"><button id="prev" aria-label="Previous month">‹</button><strong id="monthLabel"></strong><button id="next" aria-label="Next month">›</button></section>
 <section class="hero card">
-<p class="muted">Earned this month</p><div class="amount" id="earned">€0.00</div>
+<div class="between"><p class="muted">Earned this month</p><span class="tag" id="currencyTag">EUR</span></div>
+<div class="amount" id="earned">€0.00</div>
 <div class="stats"><div><span>Worked days</span><strong id="workedDays">0</strong></div><div><span>Overtime</span><strong id="otHours">0.00 h</strong></div></div>
-<div class="formula">€25/day + €2.77 per overtime hour</div>
+<div class="formula" id="salaryFormula">€25/day + €2.77 per overtime hour</div>
 </section>
 <section class="grid">
-<div class="card small"><span>Received</span><strong>Coming in a later update</strong></div>
-<div class="card small"><span>Outstanding</span><strong>Coming in a later update</strong></div>
-<div class="card small"><span>Expenses</span><strong>Coming in a later update</strong></div>
+<button class="metric card" data-scroll="salarySection"><span>Received</span><strong id="received">€0.00</strong><small>Tap to manage payments</small></button>
+<button class="metric card" data-scroll="salarySection"><span>Outstanding</span><strong id="outstanding">€0.00</strong><small>Earned − received</small></button>
+<button class="metric card" data-scroll="expensesSection"><span>Expenses</span><strong id="expensesTotal">€0.00</strong><small>This month</small></button>
 </section>
 <section class="card duty"><div><p class="muted">Today's duty</p><h2 id="todayStatus">Not recorded</h2><p class="muted" id="todayHours"></p></div><button class="primary" id="record">＋ Record duty</button></section>
-<section class="card" id="workSection"><div class="section-head"><h3>Work entries</h3><button class="small-action" id="addEntry">＋ Add</button></div><div id="entries" class="entries"><p class="muted">Loading entries…</p></div></section>
-<section class="card"><h3>Salary rules</h3><div class="rule-row"><span>Basic pay</span><strong>€25.00 / day</strong></div><div class="rule-row"><span>Standard duty</span><strong>8 hours</strong></div><div class="rule-row"><span>Overtime rate</span><strong>€2.77 / hour</strong></div><p class="hint">This version records work and calculates basic pay plus overtime. Other finance sections will be added in later updates.</p></section>
-<nav class="bottom"><button class="active" id="homeTab">Home</button><button id="workTab">Work</button><button class="plus" id="quickAdd">＋</button><button disabled>Money</button><button disabled>Reports</button></nav>
+<section class="card" id="workSection"><div class="section-head"><h3>Work entries</h3><button class="small-action" id="addEntry">＋ Add</button></div><div id="entries" class="entries"></div></section>
+<section class="card" id="salarySection"><div class="section-head"><h3>Salary received</h3><button class="small-action" id="addPayment">＋ Add payment</button></div><p class="hint">Choose the salary month explicitly for every payment. Bus allowance is tracked separately and does not reduce outstanding salary.</p><div id="payments" class="entries"></div></section>
+<section class="card" id="expensesSection"><div class="section-head"><h3>Expenses</h3><button class="small-action" id="addExpense">＋ Add expense</button></div><div id="expenseList" class="entries"></div></section>
+<section class="card"><div class="section-head"><h3>Remittance</h3><button class="small-action" id="addRemit">＋ Add transfer</button></div><div class="stats"><div><span>Sent this month</span><strong id="remitTotal">€0.00</strong></div><div><span>Bonus</span><strong id="bonusTotal">€0.00</strong></div></div><div id="remitList" class="entries"></div></section>
+<section class="card"><div class="section-head"><h3>Money given</h3><button class="small-action" id="addGift">＋ Add</button></div><p class="hint">Gifts and help only — not loans. EUR and BDT remain separate unless you enter an actual rate.</p><div id="giftList" class="entries"></div></section>
+<section class="card"><div class="section-head"><h3>Reports & backup</h3><button class="small-action" id="exportBtn">Export backup</button></div><div class="action-row"><button class="secondary" id="csvBtn">Download CSV</button><button class="secondary" id="printBtn">Print report / PDF</button><button class="secondary" id="importBtn">Restore backup</button><input type="file" id="restoreFile" accept="application/json,.json" hidden></div><p class="hint">Your records stay on this device. Export a backup regularly. GitHub stores app code only, not your financial records.</p></section>
+<section class="card" id="settingsSection"><h3>Settings</h3><div class="settings-grid">
+<label>Language<select id="language"><option value="en">English</option><option value="bn">বাংলা</option><option value="tr">Türkçe</option><option value="bg">Български</option><option value="hi">हिन्दी</option><option value="el">Ελληνικά</option></select></label>
+<label>Display currency<select id="currency"><option value="EUR">EUR (€)</option><option value="BDT">BDT (৳)</option></select></label>
+<label>Basic pay per worked day (€)<input id="basicRate" type="number" min="0" step=".01"></label>
+<label>Standard hours per day<input id="standardHours" type="number" min="0" step=".25"></label>
+<label>Overtime rate (€ / hour)<input id="otRate" type="number" min="0" step=".01"></label>
+<label>Monthly bus allowance (€)<input id="busAllowance" type="number" min="0" step=".01"></label>
+<label class="check"><input type="checkbox" id="paidLeave"> Pay €25 for Paid Leave</label>
+<label class="check"><input type="checkbox" id="paidHoliday"> Pay €25 for Holiday</label>
+<label>Default remittance bonus (%)<input id="bonusRate" type="number" min="0" step=".1"></label>
+</div><button class="primary full" id="saveSettings">Save settings</button><p class="hint">Changing language or display currency does not convert or alter saved transactions. BDT view uses a display conversion only when a rate is entered for a specific transaction; EUR totals remain the source of truth.</p></section>
+<footer>My Salary Tracker • Private data on this device • v0.4</footer>
+<nav class="bottom"><button class="active" data-scroll="top">Home</button><button data-scroll="workSection">Work</button><button class="plus" id="quickAdd">＋</button><button data-scroll="salarySection">Money</button><button data-scroll="settingsSection">Settings</button></nav>
 </main>
-<dialog id="entryDialog">
-<form id="entryForm">
-<div class="dialog-head"><h2 id="dialogTitle">Record duty</h2><button type="button" class="close" id="closeDialog">×</button></div>
+
+<dialog id="entryDialog"><form id="entryForm">
+<div class="dialog-head"><h2 id="dialogTitle">Record duty</h2><button type="button" class="close" data-close>×</button></div>
 <label>Date<input type="date" id="workDate" required></label>
 <label>Status<select id="workStatus"><option value="worked">Worked</option><option value="rest">Rest</option><option value="paid_leave">Paid Leave</option><option value="unpaid_leave">Unpaid Leave</option><option value="sick_leave">Sick Leave</option><option value="holiday">Holiday</option></select></label>
-<label>Total hours worked<input type="number" id="hours" min="0" max="24" step="0.25" value="8" inputmode="decimal"></label>
-<p class="hint">Overtime is calculated automatically after 8 hours. Example: 10 hours = 2 overtime hours. This version currently calculates €25 only for Worked days.</p>
-<div class="preview" id="entryPreview">Estimated pay: €25.00</div>
-<div class="dialog-actions"><button type="button" class="secondary" id="deleteEntry" hidden>Delete</button><button type="submit" class="primary">Save entry</button></div>
-</form>
-</dialog>
-<script src="app.js?v=3"></script>
+<label>Total hours worked<input type="number" id="hours" min="0" max="24" step=".25" value="8"></label>
+<div class="preview" id="entryPreview"></div><div class="dialog-actions"><button type="button" class="secondary" id="deleteEntry" hidden>Delete</button><button type="submit" class="primary">Save entry</button></div>
+</form></dialog>
+
+<dialog id="paymentDialog"><form id="paymentForm">
+<div class="dialog-head"><h2 id="paymentTitle">Add salary payment</h2><button type="button" class="close" data-close>×</button></div>
+<label>Payment date<input type="date" id="paymentDate" required></label>
+<label>Salary month<select id="paymentMonth" required></select></label>
+<label>Salary amount received (€)<input type="number" id="paymentAmount" min="0" step=".01" required></label>
+<label>Bus allowance included (€)<input type="number" id="paymentBus" min="0" step=".01" value="0"></label>
+<label>Note<input id="paymentNote" maxlength="120" placeholder="Optional"></label>
+<div class="dialog-actions"><button type="button" class="secondary" id="deletePayment" hidden>Delete</button><button type="submit" class="primary">Save payment</button></div>
+</form></dialog>
+
+<dialog id="expenseDialog"><form id="expenseForm">
+<div class="dialog-head"><h2 id="expenseTitle">Add expense</h2><button type="button" class="close" data-close>×</button></div>
+<label>Date<input type="date" id="expenseDate" required></label><label>Category<select id="expenseCategory"><option>Food</option><option>Transport</option><option>Phone / Internet</option><option>Shopping</option><option>Health</option><option>Other</option></select></label>
+<label>Amount (€)<input type="number" id="expenseAmount" min=".01" step=".01" required></label><label>Note<input id="expenseNote" maxlength="120"></label>
+<div class="dialog-actions"><button type="button" class="secondary" id="deleteExpense" hidden>Delete</button><button type="submit" class="primary">Save expense</button></div>
+</form></dialog>
+
+<dialog id="remitDialog"><form id="remitForm">
+<div class="dialog-head"><h2 id="remitTitle">Add remittance</h2><button type="button" class="close" data-close>×</button></div>
+<label>Date<input type="date" id="remitDate" required></label><label>Recipient<input id="remitRecipient" maxlength="80" required placeholder="Name"></label>
+<label>Sent amount (€)<input type="number" id="remitAmount" min=".01" step=".01" required></label><label>Actual exchange rate (BDT per €)<input type="number" id="remitRate" min="0" step=".0001" placeholder="Optional"></label>
+<label>Fee (€)<input type="number" id="remitFee" min="0" step=".01" value="0"></label><label>Bonus (%)<input type="number" id="remitBonus" min="0" step=".1"></label>
+<label>Method / note<input id="remitNote" maxlength="120" placeholder="Optional"></label><div class="preview" id="remitPreview"></div>
+<div class="dialog-actions"><button type="button" class="secondary" id="deleteRemit" hidden>Delete</button><button type="submit" class="primary">Save transfer</button></div>
+</form></dialog>
+
+<dialog id="giftDialog"><form id="giftForm">
+<div class="dialog-head"><h2 id="giftTitle">Add money given</h2><button type="button" class="close" data-close>×</button></div>
+<label>Date<input type="date" id="giftDate" required></label><label>Person<input id="giftPerson" maxlength="80" required></label>
+<label>Currency<select id="giftCurrency"><option value="EUR">EUR (€)</option><option value="BDT">BDT (৳)</option></select></label>
+<label>Amount<input type="number" id="giftAmount" min=".01" step=".01" required></label><label>Note<input id="giftNote" maxlength="120"></label>
+<div class="dialog-actions"><button type="button" class="secondary" id="deleteGift" hidden>Delete</button><button type="submit" class="primary">Save</button></div>
+</form></dialog>
+<script src="app.js?v=4"></script>
 </body></html>
