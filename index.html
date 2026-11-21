@@ -1,50 +1,35 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#111827">
-<link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
-<link rel="stylesheet" href="style.css">
-<title>My Salary Tracker</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101827">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="style.css">
+  <title>My Salary Tracker</title>
 </head>
 <body>
-<div class="app">
-<header class="top">
-<div><div id="weekday" class="muted"></div><div id="date" class="date"></div></div>
-<div class="clock" id="clock">--:--</div>
-<button class="icon-btn" id="menuBtn" aria-label="Menu">☰</button>
-</header>
-<main id="view">
-<section class="welcome"><p class="eyebrow" data-i18n="overview">OVERVIEW</p><h1 data-i18n="hello">Hello 👋</h1><p class="muted" data-i18n="subtitle">Your personal finance dashboard</p></section>
-<section class="card balance"><div class="muted" data-i18n="outstanding">Outstanding salary</div><div class="amount">€0.00</div><div class="small" data-i18n="localNote">Your data stays on this device</div></section>
-<section class="grid">
-<div class="stat card"><span data-i18n="earned">Earned</span><strong>€0.00</strong></div>
-<div class="stat card"><span data-i18n="received">Received</span><strong>€0.00</strong></div>
-<div class="stat card"><span data-i18n="expenses">Expenses</span><strong>€0.00</strong></div>
-<div class="stat card"><span data-i18n="remittance">Remittance</span><strong>€0.00</strong></div>
-</section>
-<h2 data-i18n="quickActions">Quick actions</h2>
-<section class="actions">
-<button class="action" data-action="duty"><span>🗓️</span><label data-i18n="basicDuty">Basic Duty</label></button>
-<button class="action" data-action="ot"><span>⏱️</span><label data-i18n="overtime">Overtime</label></button>
-<button class="action" data-action="expense"><span>🧾</span><label data-i18n="addExpense">Expense</label></button>
-<button class="action" data-action="salary"><span>💶</span><label data-i18n="salaryReceived">Salary Received</label></button>
-<button class="action" data-action="send"><span>🇧🇩</span><label data-i18n="remitMoney">Remittance</label></button>
-<button class="action" data-action="gift"><span>🎁</span><label data-i18n="moneyGiven">Money Given</label></button>
-</section>
-<section class="card placeholder"><h3 data-i18n="comingSoon">Modules will be added step by step</h3><p class="muted" data-i18n="checklistMsg">We will build each feature and check it off our Master Checklist.</p></section>
-</main>
-<nav class="nav">
-<button class="nav-item active" data-tab="home"><span>⌂</span><small data-i18n="home">Home</small></button>
-<button class="nav-item" data-tab="work"><span>🗓</span><small data-i18n="work">Work</small></button>
-<button class="nav-item plus" id="plusBtn">＋</button>
-<button class="nav-item" data-tab="money"><span>€</span><small data-i18n="money">Money</small></button>
-<button class="nav-item" data-tab="reports"><span>▥</span><small data-i18n="reports">Reports</small></button>
-</nav>
-</div>
-<div class="toast" id="toast"></div>
-<script src="app.js"></script>
+  <main class="app">
+    <header class="top">
+      <div><p class="eyebrow">PERSONAL FINANCE</p><h1>My Salary Tracker</h1></div>
+      <button id="lang" class="pill" aria-label="Change language">EN ▾</button>
+    </header>
+    <section class="month"><button id="prev" aria-label="Previous month">‹</button><strong id="monthLabel"></strong><button id="next" aria-label="Next month">›</button></section>
+    <section class="hero card">
+      <p class="muted">Earned this month</p><div class="amount" id="earned">€0.00</div>
+      <div class="stats"><div><span>Received</span><strong id="received">€0.00</strong></div><div><span>Outstanding</span><strong id="outstanding">€0.00</strong></div></div>
+    </section>
+    <section class="grid">
+      <div class="card small"><span>Expenses</span><strong>€0.00</strong></div>
+      <div class="card small"><span>Remittance</span><strong>€0.00</strong></div>
+      <div class="card small"><span>Money given</span><strong>€0.00</strong></div>
+    </section>
+    <section class="card duty"><div><p class="muted">Today's duty</p><h2>Not recorded</h2></div><button class="primary" id="record">Record duty</button></section>
+    <section class="card"><h3>Quick actions</h3><div class="actions"><button>＋ Salary received</button><button>＋ Expense</button><button>＋ Remittance</button><button>＋ Money given</button></div></section>
+    <section class="card"><h3>Salary comparison</h3><p class="muted">Previous month summary will appear here.</p></section>
+    <nav class="bottom"><button class="active">Home</button><button>Work</button><button class="plus">＋</button><button>Money</button><button>Reports</button></nav>
+  </main>
+  <script src="app.js"></script>
 </body>
 </html>
