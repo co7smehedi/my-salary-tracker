@@ -1,35 +1,31 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#101827">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-  <link rel="stylesheet" href="style.css">
-  <title>My Salary Tracker</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827"><link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="stylesheet" href="style.css">
+<title>My Salary Tracker</title>
 </head>
 <body>
-  <main class="app">
-    <header class="top">
-      <div><p class="eyebrow">PERSONAL FINANCE</p><h1>My Salary Tracker</h1></div>
-      <button id="lang" class="pill" aria-label="Change language">EN ▾</button>
-    </header>
-    <section class="month"><button id="prev" aria-label="Previous month">‹</button><strong id="monthLabel"></strong><button id="next" aria-label="Next month">›</button></section>
-    <section class="hero card">
-      <p class="muted">Earned this month</p><div class="amount" id="earned">€0.00</div>
-      <div class="stats"><div><span>Received</span><strong id="received">€0.00</strong></div><div><span>Outstanding</span><strong id="outstanding">€0.00</strong></div></div>
-    </section>
-    <section class="grid">
-      <div class="card small"><span>Expenses</span><strong>€0.00</strong></div>
-      <div class="card small"><span>Remittance</span><strong>€0.00</strong></div>
-      <div class="card small"><span>Money given</span><strong>€0.00</strong></div>
-    </section>
-    <section class="card duty"><div><p class="muted">Today's duty</p><h2>Not recorded</h2></div><button class="primary" id="record">Record duty</button></section>
-    <section class="card"><h3>Quick actions</h3><div class="actions"><button>＋ Salary received</button><button>＋ Expense</button><button>＋ Remittance</button><button>＋ Money given</button></div></section>
-    <section class="card"><h3>Salary comparison</h3><p class="muted">Previous month summary will appear here.</p></section>
-    <nav class="bottom"><button class="active">Home</button><button>Work</button><button class="plus">＋</button><button>Money</button><button>Reports</button></nav>
-  </main>
-  <script src="app.js"></script>
-</body>
-</html>
+<main class="app">
+<header class="top"><div><p class="eyebrow">PERSONAL FINANCE</p><h1>My Salary Tracker</h1></div><button id="lang" class="pill">EN ▾</button></header>
+<section class="month"><button id="prev" aria-label="Previous month">‹</button><strong id="monthLabel"></strong><button id="next" aria-label="Next month">›</button></section>
+<section class="hero card"><p class="muted" data-i18n="earned">Earned this month</p><div class="amount" id="earned">€0.00</div>
+<div class="stats"><div><span data-i18n="workedDays">Worked days</span><strong id="workedDays">0</strong></div><div><span data-i18n="overtime">Overtime</span><strong id="otHours">0.00 h</strong></div></div>
+<div class="formula">€25/day + €2.77 per overtime hour</div></section>
+<section class="grid"><div class="card small"><span data-i18n="received">Received</span><strong>€0.00</strong></div><div class="card small"><span data-i18n="outstanding">Outstanding</span><strong id="outstanding">€0.00</strong></div><div class="card small"><span data-i18n="expenses">Expenses</span><strong>€0.00</strong></div></section>
+<section class="card duty"><div><p class="muted" data-i18n="todayDuty">Today's duty</p><h2 id="todayStatus">Not recorded</h2><p class="muted" id="todayHours"></p></div><button class="primary" id="record">＋ <span data-i18n="recordDuty">Record duty</span></button></section>
+<section class="card"><div class="section-head"><h3 data-i18n="workEntries">Work entries</h3><button class="small-action" id="addEntry">＋ Add</button></div><div id="entries" class="entries"><p class="muted">No work entries for this month.</p></div></section>
+<section class="card"><h3 data-i18n="salaryRules">Salary rules</h3><div class="rule-row"><span>Basic pay</span><strong>€25.00 / day</strong></div><div class="rule-row"><span>Standard duty</span><strong>8 hours</strong></div><div class="rule-row"><span>Overtime rate</span><strong>€2.77 / hour</strong></div></section>
+<nav class="bottom"><button class="active">Home</button><button>Work</button><button class="plus" id="quickAdd">＋</button><button>Money</button><button>Reports</button></nav>
+</main>
+<dialog id="entryDialog"><form id="entryForm" method="dialog"><div class="dialog-head"><h2 id="dialogTitle">Record duty</h2><button type="button" class="close" id="closeDialog">×</button></div>
+<label>Date<input type="date" id="workDate" required></label>
+<label>Status<select id="workStatus"><option value="worked">Worked</option><option value="rest">Rest</option><option value="paid_leave">Paid Leave</option><option value="unpaid_leave">Unpaid Leave</option><option value="sick_leave">Sick Leave</option><option value="holiday">Holiday</option></select></label>
+<label>Total hours worked<input type="number" id="hours" min="0" max="24" step="0.25" value="8" inputmode="decimal"></label>
+<p class="hint">Overtime is calculated automatically after 8 hours. For example, 10 hours = 2 overtime hours.</p>
+<div class="preview" id="entryPreview">Estimated pay: €25.00</div>
+<div class="dialog-actions"><button type="button" class="secondary" id="deleteEntry" hidden>Delete</button><button type="submit" class="primary">Save entry</button></div>
+</form></dialog>
+<script src="app.js"></script>
+</body></html>
