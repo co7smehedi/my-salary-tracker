@@ -1,1 +1,37 @@
-const CACHE='mst-rc-v6';const CORE=['./','./index.html','./style.css','./app.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png'];self.addEventListener('install',e=>e.waitUntil((async()=>{const c=await caches.open(CACHE);await Promise.all(CORE.map(u=>c.add(u).catch(()=>{})));await self.skipWaiting()})()));self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==CACHE)await caches.delete(k);await self.clients.claim()})()));self.addEventListener('fetch',e=>{if(e.request.method!=='GET'||new URL(e.request.url).origin!==location.origin)return;e.respondWith((async()=>{try{const r=await fetch(e.request);if(r.ok)(await caches.open(CACHE)).put(e.request,r.clone());return r}catch(err){return await caches.match(e.request)|| (e.request.mode==='navigate'?caches.match('./index.html'):Response.error())}})())});
+/* My Salary Tracker - service worker. Network-first (so updates arrive quickly), cached copy when offline. It does not read or write any saved records. */
+const VERSION = '9.1.0';
+const CACHE = 'mst-v' + VERSION.replace(/\./g, '-');
+const CORE = ['./', './index.html', './style.css', './i18n.js', './calc.js', './backup-rules.js', './app.js', './recover.js', './manifest.json', './recover.html',
+  './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(CORE.map((u) => new Request(u, { cache: 'reload' })));   // if any file is missing, install fails and the old version keeps working
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    for (const k of await caches.keys()) if (k.startsWith('mst-') && k !== CACHE) await caches.delete(k);
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  event.respondWith((async () => {
+    try {
+      const res = await fetch(req, { cache: 'no-cache' });
+      if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {}); }
+      return res;
+    } catch (err) {
+      const hit = await caches.match(req, { ignoreSearch: true });
+      if (hit) return hit;
+      if (req.mode === 'navigate') { const page = await caches.match('./index.html'); if (page) return page; }
+      return Response.error();
+    }
+  })());
+});

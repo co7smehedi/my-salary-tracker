@@ -1,28 +1,104 @@
 <!doctype html>
 <html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#101827"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Salary Tracker">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Private offline-first salary and money tracker">
-<link rel="manifest" href="./manifest.json"><link rel="apple-touch-icon" href="./icons/apple-touch-icon.png"><link rel="stylesheet" href="./style.css">
-<title>My Salary Tracker</title></head><body>
-<main class="app">
-<header><div><small>PRIVATE • OFFLINE FIRST</small><h1>My Salary Tracker</h1></div><button id="menuBtn" class="icon" aria-label="More options">⋮</button></header>
-<div class="month"><button id="prev">‹</button><strong id="month"></strong><button id="next">›</button></div>
-<section class="card hero"><div class="label" data-t="earned">Earned this month</div><h2 id="earned">€0.00</h2><div class="stats"><div><small data-t="worked">Worked days</small><b id="days">0</b></div><div><small data-t="ot">Overtime</small><b id="ot">0 h</b></div></div><p id="formula"></p></section>
-<div class="tiles"><button class="card" data-jump="payments"><small data-t="received">Received</small><b id="received">€0</b></button><button class="card" data-jump="payments"><small data-t="due">Outstanding</small><b id="due">€0</b></button><button class="card" data-jump="expenses"><small data-t="expenses">Expenses</small><b id="expTotal">€0</b></button></div>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/png" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="stylesheet" href="./style.css">
+<title>My Salary Tracker</title></head>
+<body>
+<main class="app" id="top">
+<header><div><small data-t="appTag">PRIVATE • OFFLINE FIRST</small><h1>My Salary Tracker</h1></div><button id="menuBtn" class="iconbtn" aria-label="Menu" aria-haspopup="dialog">⋮</button></header>
+<div id="backupBanner" class="banner" role="status" hidden><p id="bannerText"></p><div class="actions"><button id="bannerExport" type="button" class="primary" data-t="b_banner_btn">Export backup now</button><button id="bannerLater" type="button" class="secondary" data-t="b_banner_later">Remind me tomorrow</button></div></div>
+<div class="month"><button id="prev" aria-label="Previous month">‹</button><strong id="month" aria-live="polite"></strong><button id="next" aria-label="Next month">›</button></div>
+
+<section class="card hero" aria-labelledby="earnedLbl"><div class="label" id="earnedLbl" data-t="earned">Earned this month</div><h2 id="earned">€0.00</h2>
+<div class="stats"><div><small data-t="worked">Worked days</small><b id="days">0</b></div><div><small data-t="ot">Overtime</small><b id="ot">0 h</b></div></div><p class="note" id="formula"></p></section>
+
+<div class="tiles">
+<button class="card" data-jump="payments"><small data-t="received">Received</small><b id="received">€0</b></button>
+<button class="card" id="dueTile" data-jump="payments"><small id="dueLbl" data-t="due">Outstanding</small><b id="due">€0</b></button>
+<button class="card" data-jump="expenses"><small data-t="expenses">Expenses</small><b id="expTotal">€0</b></button>
+</div>
+
 <section class="card"><div class="row"><h3 data-t="duty">Today's duty</h3><button id="record" class="primary" data-t="record">＋ Record</button></div><p id="today"></p></section>
-<section id="work" class="card"><div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small">＋</button></div><div id="workList"></div></section>
-<section id="payments" class="card"><div class="row"><h3 data-t="payments">Salary payments</h3><button id="addPayment" class="small">＋</button></div><div id="paymentList"></div></section>
-<section id="expenses" class="card"><div class="row"><h3 data-t="expenses">Expenses</h3><button id="addExpense" class="small">＋</button></div><div id="expenseList"></div></section>
-<section id="remit" class="card"><div class="row"><h3 data-t="remit">Remittance</h3><button id="addRemit" class="small">＋</button></div><p id="remitSummary"></p><div id="remitList"></div></section>
-<section id="gifts" class="card"><div class="row"><h3 data-t="given">Money given</h3><button id="addGift" class="small">＋</button></div><div id="giftList"></div></section>
+<section id="work" class="card"><div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small" aria-label="Add">＋</button></div><div id="workList"></div></section>
+<section id="payments" class="card"><div class="row"><h3 data-t="payments">Salary payments</h3><button id="addPayment" class="small" aria-label="Add">＋</button></div><p id="busLine" class="note"></p><div id="paymentList"></div></section>
+<section id="expenses" class="card"><div class="row"><h3 data-t="expenses">Expenses</h3><button id="addExpense" class="small" aria-label="Add">＋</button></div><div id="expenseList"></div></section>
+<section id="remit" class="card"><div class="row"><h3 data-t="remit">Remittance</h3><button id="addRemit" class="small" aria-label="Add">＋</button></div><p id="remitSummary" class="note"></p><div id="remitList"></div></section>
+<section id="gifts" class="card"><div class="row"><h3 data-t="given">Money given</h3><button id="addGift" class="small" aria-label="Add">＋</button></div><p class="note" data-t="given_note"></p><div id="giftList"></div></section>
+
+<section id="reports" class="card"><h3 data-t="reports">Reports</h3>
+<div class="seg" role="group"><button id="rMonth" data-rtype="month" data-t="r_month">Month</button><button id="rYear" data-rtype="year" data-t="r_year">Year</button><button id="rAll" data-rtype="all" data-t="r_all">All time</button></div>
+<div class="rep-nav" id="repNav"><button id="rPrev" class="small" aria-label="Previous">‹</button><strong id="repLabel"></strong><button id="rNext" class="small" aria-label="Next">›</button></div>
+<div id="reportBody"></div>
+<div class="actions"><button id="csvReport" class="secondary" data-t="csvReport">CSV (this report)</button><button id="print" class="secondary" data-t="print">Print / PDF</button></div>
+</section>
+
+<section id="backupSec" class="card"><h3 data-t="backupSec">Backup &amp; restore</h3><p class="note" data-t="b_info"></p><p class="note" id="bkLast"></p>
+<div class="actions"><button id="backup" class="primary" data-t="backup">Export backup</button><button id="restore" class="secondary" data-t="restore">Restore backup</button><button id="csv" class="secondary" data-t="csv">CSV (all records)</button><button id="raw" class="secondary" data-t="b_raw">Export everything (recovery)</button></div>
+<input id="file" type="file" accept=".json,application/json" hidden></section>
+
 <section id="settings" class="card"><h3 data-t="settings">Settings</h3><div class="settings">
 <label><span data-t="language">Language</span><select id="language"><option value="en">English</option><option value="bn">বাংলা</option><option value="tr">Türkçe</option><option value="bg">Български</option><option value="hi">हिन्दी</option><option value="el">Ελληνικά</option></select></label>
-<label>Daily wage (€)<input id="basic" type="number" step=".01"></label><label>Standard hours<input id="standard" type="number" step=".25"></label><label>OT rate (€)<input id="otRate" type="number" step=".01"></label><label>Bus allowance/month (€)<input id="bus" type="number" step=".01"></label><label>Remittance bonus %<input id="bonus" type="number" step=".1"></label>
-<button id="saveSettings" class="primary full" data-t="save">Save</button></div></section>
-<section id="reports" class="card"><h3 data-t="reports">Reports & Backup</h3><div class="actions"><button id="backup" data-t="backup">Export backup</button><button id="restore" data-t="restore">Restore backup</button><button id="csv">CSV</button><button id="print" data-t="print">Print / PDF</button><input id="file" type="file" accept=".json,application/json" hidden></div><p class="hint">Records remain on this device. Back up regularly.</p></section>
-<footer>My Salary Tracker • Local device data • RC</footer>
+<label><span data-t="theme">Appearance</span><select id="theme"><option value="auto" data-t="themeAuto">Automatic</option><option value="light" data-t="themeLight">Light</option><option value="dark" data-t="themeDark">Dark</option></select></label>
+<label><span data-t="s_basic">Daily wage (€)</span><input id="basic" type="number" inputmode="decimal" step="0.01" min="0"></label>
+<label><span data-t="s_standard">Standard hours per day</span><input id="standard" type="number" inputmode="decimal" step="0.25" min="0" max="24"></label>
+<label><span data-t="s_ot">Overtime rate</span><input id="otRate" type="number" inputmode="decimal" step="0.01" min="0"></label>
+<label><span data-t="s_bus">Bus allowance per month</span><input id="bus" type="number" inputmode="decimal" step="0.01" min="0"></label>
+<label><span data-t="s_bonus">Remittance bonus %</span><input id="bonus" type="number" inputmode="decimal" step="0.1" min="0"></label>
+<span></span>
+<label class="check"><input id="paidLeave" type="checkbox"><span data-t="s_paidLeave"></span></label>
+<label class="check"><input id="paidHoliday" type="checkbox"><span data-t="s_paidHoliday"></span></label>
+<label class="check"><input id="sickPaid" type="checkbox"><span data-t="s_sickPaid"></span></label>
+<label class="check"><input id="rentEnabled" type="checkbox"><span data-t="s_rent"></span></label>
+<button id="saveSettings" class="primary full" style="grid-column:1/-1" data-t="save">Save</button>
+</div><p id="settingsMsg" class="error" role="alert"></p>
+<div id="storageBox" class="storage"><h4 data-t="st_title">Storage &amp; backup</h4>
+<dl><div><dt data-t="st_persist">Protected storage</dt><dd id="stPersist"></dd></div><div><dt data-t="st_used">Space used</dt><dd id="stUsed"></dd></div><div><dt data-t="st_lastBackup">Last backup exported</dt><dd id="stLast"></dd></div></dl>
+<div class="actions"><button id="persistBtn" type="button" class="secondary" data-t="st_request">Request protection</button></div><p id="persistMsg" class="note" role="status"></p></div></section>
+<footer><span id="verLine"></span></footer>
 </main>
-<dialog id="menu"><form method="dialog"><h3 data-t="menu">Menu</h3><div class="menu-items"><button type="button" data-target="top">⌂ Home</button><button type="button" data-target="reports">▤ Reports</button><button type="button" data-target="work">▦ Work schedule</button><button type="button" data-target="gifts">♙ Recipients / Money given</button><button type="button" data-target="reports">⇧ Backup & Restore</button><button type="button" data-target="settings">⚙ Settings / Language</button><button type="button" id="about">ⓘ About</button></div><button class="close">Close</button></form></dialog>
-<dialog id="editDialog"><form id="editForm"><h3 id="dlgTitle"></h3><div id="fields"></div><div class="row"><button type="button" id="deleteBtn" class="danger" hidden>Delete</button><button class="primary" type="submit">Save</button><button type="button" class="closeEdit">Cancel</button></div></form></dialog>
-<script src="./app.js"></script></body></html>
+
+<div id="printArea" aria-hidden="true"></div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<dialog id="menu"><div class="dlg"><h3 data-t="menu">Menu</h3><div class="menu-items">
+<button type="button" data-target="top">⌂ <span data-t="home">Home</span></button>
+<button type="button" data-target="reports">▤ <span data-t="reports">Reports</span></button>
+<button type="button" data-target="gifts">♙ <span data-t="given">Money given</span></button>
+<button type="button" data-target="backupSec">⇅ <span data-t="backupSec">Backup &amp; restore</span></button>
+<button type="button" data-target="settings">⚙ <span data-t="settings">Settings</span></button>
+<button type="button" id="aboutBtn">ⓘ <span data-t="m_about">About</span></button></div>
+<button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
+
+<dialog id="editDialog"><form id="editForm" novalidate><h3 id="dlgTitle">Record</h3><div id="fields" class="fields"></div><p id="formErr" class="error" role="alert"></p>
+<div class="dialog-actions"><button class="primary" type="submit" data-t="save">Save</button><button type="button" id="deleteBtn" class="danger" hidden data-t="del">Delete</button><button type="button" class="secondary closeDlg" data-t="cancel">Cancel</button></div></form></dialog>
+
+<dialog id="confirmDlg"><div class="dlg"><h3 id="cfTitle">Confirm</h3><p id="cfMsg" class="muted"></p><div class="dialog-actions"><button type="button" id="cfOk" class="danger">OK</button><button type="button" id="cfCancel" class="secondary" data-t="cancel">Cancel</button></div></div></dialog>
+
+<dialog id="restoreDlg"><div class="dlg"><h3 data-t="b_restoreTitle">Restore backup</h3><div id="rsInfo" class="muted"></div>
+<button type="button" id="rsSafety" class="secondary" data-t="b_safety">Safety backup</button>
+<p class="muted" data-t="b_choose"></p>
+<button type="button" id="rsMerge" class="primary" disabled data-t="b_merge">Merge</button><small id="rsMergeHint" data-t="b_mergeHint"></small>
+<button type="button" id="rsReplace" class="danger" disabled data-t="b_replace">Replace</button><small id="rsReplaceHint" data-t="b_replaceHint"></small>
+<button type="button" id="rsCancel" class="secondary" data-t="cancel">Cancel</button><p id="rsErr" class="error" role="alert"></p></div></dialog>
+
+<dialog id="updateDlg"><div class="dlg"><h3 data-t="upd_title">New version installed</h3><p class="muted" data-t="upd_msg"></p><p class="note" id="updLastLine"></p>
+<button type="button" id="updBackup" class="primary" data-t="upd_backup">Export backup first</button><button type="button" id="updReload" class="secondary" data-t="upd_reload">Reload now</button><button type="button" id="updLater" class="secondary closeDlg" data-t="upd_later">Later</button></div></dialog>
+
+<dialog id="aboutDlg"><div class="dlg"><h3 data-t="m_about">About</h3><p id="aboutText"></p><p class="muted" id="aboutVer"></p><a href="./recover.html" id="recoverLink" style="color:var(--accent);font-weight:700" data-t="m_recover">Recover data</a><button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
+
+<script src="./i18n.js"></script>
+<script src="./calc.js"></script>
+<script src="./backup-rules.js"></script>
+<script src="./app.js"></script>
+</body></html>

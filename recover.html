@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Data Recovery - My Salary Tracker</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#f2f6fc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom)}
+main{max-width:700px;margin:auto;padding:16px 0 40px}h1{font-size:22px;margin:6px 0}.card{background:#121e30;border:1px solid #26364c;border-radius:16px;padding:15px;margin:12px 0}
+.ok{color:#8ce2c0}.warn{color:#ffd37a}.bad{color:#ff8a95}small,.muted{color:#99abc1}
+button,a.btn{display:block;width:100%;margin:8px 0;padding:14px;border:0;border-radius:12px;background:#8ce2c0;color:#092018;font-weight:700;font-size:16px;text-align:center;text-decoration:none}
+button.sec,a.sec{background:#33465e;color:#fff}textarea{width:100%;height:170px;background:#0b1525;color:#dbe6f3;border:1px solid #3b4d65;border-radius:10px;padding:10px;font-size:12px}
+ul{padding-left:18px;margin:6px 0}li{margin:4px 0}
+</style></head><body><main>
+<h1>Data Recovery</h1>
+<p class="muted">My Salary Tracker &bull; read-only</p>
+<div class="card"><b class="ok">This page only READS your data.</b><br>It does not change, delete, reset or upgrade anything. It makes no internet requests. Nothing leaves your phone unless you choose to save or share the file yourself.</div>
+<div class="card" id="status">Scanning...</div>
+<div class="card" id="found" hidden>
+<b>What was found</b><ul id="summary"></ul>
+</div>
+<div class="card" id="actions" hidden>
+<b>Save a copy</b>
+<p class="muted">Do the first one that works for you, then keep the file somewhere safe (for example iCloud Drive).</p>
+<button id="share">1. Save / Share file</button>
+<button id="copy" class="sec">2. Copy all text</button>
+<textarea id="out" readonly aria-label="Recovered data"></textarea>
+<small>If both buttons fail: tap inside the box, choose Select All, then Copy, and paste into the Notes app.</small>
+</div>
+<a class="btn sec" href="./">Back to app</a>
+<script src="./recover.js"></script></main></body></html>
