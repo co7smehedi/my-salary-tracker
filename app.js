@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.5.12';
+  var VERSION = '9.5.13';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms', 'tips'];
   var LEGACY = 'workEntries';
@@ -342,7 +342,7 @@
     var monthTips = d.work.filter(function(x){return String(x.date||'').slice(0,7)===m;}).reduce(function(n,x){return n+C.num(x.tips);},0) + (d.tips||[]).filter(function(x){return String(x.date||'').slice(0,7)===m;}).reduce(function(n,x){return n+C.num(x.amount);},0); $('monthOtIncome').textContent=money(c.otPay); $('monthTipsIncome').textContent=money(monthTips);
     var todayRec=d.work.find(function(x){return x.date===today();}), todayParts=todayRec?C.dayParts(todayRec,s):{base:0,otHours:0,otPay:0}; var todayTips=(todayRec?C.num(todayRec.tips):0)+(d.tips||[]).filter(function(x){return x.date===today();}).reduce(function(n,x){return n+C.num(x.amount);},0), todayTotal=C.r2(todayParts.base+todayParts.otPay+todayTips); $('todayEarnings').textContent=money(todayTotal); $('todayBreakdown').innerHTML='<span>Basic Duty · '+money(todayParts.base)+'</span><span>Overtime · '+numFmt(todayParts.otHours)+' h · '+money(todayParts.otPay)+'</span><span>Tips · '+money(todayTips)+'</span><b>Total · '+money(todayTotal)+'</b>'; renderTodayProgram();
     $('formula').textContent = tr('fml', { basic: numFmt(s.basic), ot: numFmt(s.otRate) });
-    $('received').textContent = money(c.salaryReceived); $('incomeLabel').textContent = tr('incomeThisMonth'); $('expTotal').textContent = money(c.expenses);
+    $('received').textContent = money(C.r2(c.earned + c.tips)); $('incomeLabel').textContent = tr('incomeThisMonth'); $('expTotal').textContent = money(c.expenses);
     $('busLine').textContent = c.busDue > 0
       ? tr('bus_line', { due: money(c.busDue), status: tr('bus_' + c.busStatus) }) + (c.busStatus === 'partial' ? ' · ' + tr('bus_left', { amount: money(c.busOutstanding) }) : '')
       : tr('bus_notdue');
@@ -540,7 +540,7 @@
     if (!C.isDate(v.date)) return fail('err_date');
     if (kind === 'work') {
       var worked = v.status === 'worked';
-      if (worked) { if (v.hours === null || Number.isNaN(v.hours) || v.hours < 0 || v.hours > 24) return fail('err_hours'); } else { v.hours = 0; v.otExtraHours = 0; } if (v.otExtraHours === null) v.otExtraHours = 0; if (!Number.isFinite(v.otExtraHours) || v.otExtraHours < 0 || v.otExtraHours > 24) return fail('err_hours'); if (v.tips === null) v.tips = 0; if (!Number.isFinite(v.tips) || v.tips < 0 || v.tips > 100000) return fail('err_amount');
+      if (worked) { if (v.hours === null || Number.isNaN(v.hours) || v.hours < 0 || v.hours > 24) return fail('err_hours'); } else { v.hours = 0; v.otExtraHours = 0; } if (v.otExtraHours === null) v.otExtraHours = 0; if (!Number.isFinite(v.otExtraHours) || v.otExtraHours < 0 || v.otExtraHours > 24) return fail('err_hours'); if (v.tips == null) v.tips = 0; if (!Number.isFinite(v.tips) || v.tips < 0 || v.tips > 100000) return fail('err_amount');
       if (state.data.work.some(function (x) { return x.date === v.date && x.id !== old.id; })) return fail('err_dup');
     } else {
       if (!(v.amount > 0)) return fail('err_amount');
