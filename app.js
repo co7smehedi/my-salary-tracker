@@ -1,8 +1,8 @@
-/* My Salary Tracker v9.2 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
+/* My Salary Tracker v9.2.2 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.2.1';
+  var VERSION = '9.2.2';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts'];
   var LEGACY = 'workEntries';
@@ -643,18 +643,24 @@
     state.updatePending = false; $('updBackup').classList.remove('step-done'); $('updBackup').textContent = tr('upd_backup'); renderBackupUi(); openDlg('updateDlg');
   }
 
+  function switchView(view) {
+    document.body.setAttribute('data-view', view);
+    document.querySelectorAll('[data-nav]').forEach(function(b){var target=b.getAttribute('data-nav');var active=(view==='home'&&target==='top')||(view==='work'&&target==='work')||(view==='money'&&target==='payments')||(view==='reports'&&target==='reports');b.classList.toggle('active',active);});
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
   /* ---------- events ---------- */
   function bind() {
     $('menuBtn').onclick = function () { openDlg('menu'); };
-    document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); if (id === 'top') window.scrollTo({ top: 0, behavior: 'smooth' }); else { var el = $(id); el && el.scrollIntoView({ behavior: 'smooth' }); } }; });
+    document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'?'settings':'money'); }; });
     $('aboutBtn').onclick = function () { closeDlg('menu'); openDlg('aboutDlg'); };
-    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');if(k==='ot')openForm('work',{date:today(),hours:state.settings.standard+1});else openForm(k);};});
-    document.querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){var target=b.getAttribute('data-nav');if(target==='quickActions'){$('quickActions').scrollIntoView({behavior:'smooth'});return;}if(target==='top'){window.scrollTo({top:0,behavior:'smooth'});return;}var el=$(target);if(el)el.scrollIntoView({behavior:'smooth'});};});
+    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot')openForm('work',{date:today(),hours:state.settings.standard+1});else openForm(k);};});
+    document.querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){var target=b.getAttribute('data-nav');if(target==='quickActions'){openDlg('quickAddDialog');return;}switchView(target==='top'?'home':target==='work'?'work':target==='payments'?'money':target==='reports'?'reports':'home');};});
     document.addEventListener('click', function (e) {
       var cl = e.target.closest('.closeDlg'); if (cl) { var dd = cl.closest('dialog'); if (dd) { if (dd.close) dd.close(); else dd.removeAttribute('open'); } return; }
       var d = e.target.closest('[data-delete]'); if (d) { var dk = d.getAttribute('data-delete'); deleteRecord(dk, findRec(dk, d.getAttribute('data-id'), d.getAttribute('data-idt'))); return; }
       var b = e.target.closest('[data-edit]'); if (b) { var k = b.getAttribute('data-edit'); openForm(k, findRec(k, b.getAttribute('data-id'), b.getAttribute('data-idt')) || {}); return; }
-      var j = e.target.closest('[data-jump]'); if (j) { var t = $(j.getAttribute('data-jump')); t && t.scrollIntoView({ behavior: 'smooth' }); }
+      var j = e.target.closest('[data-jump]'); if (j) { var t=j.getAttribute('data-jump'); switchView(t==='payments'?'money':t==='expenses'?'money':'work'); }
     });
     $('record').onclick = function () { var tw = state.data.work.find(function (x) { return x.date === today(); }); openForm('work', tw || { date: today() }); };
     $('addWork').onclick = function () { openForm('work'); }; $('addPayment').onclick = function () { openForm('payments'); }; $('addExpense').onclick = function () { openForm('expenses'); };

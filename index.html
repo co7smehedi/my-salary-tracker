@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="stylesheet" href="./style.css">
 <title>My Salary Tracker</title></head>
-<body>
+<body data-view="home">
 <main class="app" id="top">
 <header><div><small data-t="appTag">PRIVATE • OFFLINE FIRST</small><h1>My Salary Tracker</h1></div><button id="menuBtn" class="iconbtn" aria-label="Menu" aria-haspopup="dialog">⋮</button></header>
 <div id="clock" class="clock" role="timer"><span id="clockDate"></span><b id="clockTime"></b></div>
@@ -41,24 +41,24 @@
 <section class="card balance-card" id="balanceSummary"><div class="row"><h3 data-t="balanceTitle">Salary &amp; Expenses</h3><span id="balanceMonth" class="accent"></span></div><div class="balance-bar"><i id="balanceBar"></i></div><p class="note" data-t="balanceSub">Income, expenses and savings comparison</p><strong id="savings" class="savings"></strong></section>
 <section class="card recent-card" id="recentCard"><h3 data-t="recentTitle">Recent Transactions</h3><div id="recentList"></div></section>
 <section class="card"><div class="row"><h3 data-t="duty">Today's duty</h3><button id="record" class="primary" data-t="record">＋ Record</button></div><p id="today"></p></section>
-<section id="work" class="card"><div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small" aria-label="Add">＋</button></div><p id="dupWarn" class="note warnline" role="status" hidden></p><div id="workList"></div></section>
-<section id="payments" class="card"><div class="row"><h3 data-t="payments">Salary payments</h3><button id="addPayment" class="small" aria-label="Add">＋</button></div><p id="busLine" class="note"></p><div id="paymentList"></div></section>
-<section id="expenses" class="card"><div class="row"><h3 data-t="expenses">Expenses</h3><button id="addExpense" class="small" aria-label="Add">＋</button></div><div id="expenseList"></div></section>
-<section id="remit" class="card"><div class="row"><h3 data-t="remit">Remittance</h3><button id="addRemit" class="small" aria-label="Add">＋</button></div><p id="remitSummary" class="note"></p><div id="remitList"></div></section>
-<section id="gifts" class="card"><div class="row"><h3 data-t="given">Money given</h3><button id="addGift" class="small" aria-label="Add">＋</button></div><p class="note" data-t="given_note"></p><div id="giftList"></div></section>
+<section data-screen="work" id="work" class="card"><div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small" aria-label="Add">＋</button></div><p id="dupWarn" class="note warnline" role="status" hidden></p><div id="workList"></div></section>
+<section data-screen="money" id="payments" class="card"><div class="row"><h3 data-t="payments">Salary payments</h3><button id="addPayment" class="small" aria-label="Add">＋</button></div><p id="busLine" class="note"></p><div id="paymentList"></div></section>
+<section data-screen="money" id="expenses" class="card"><div class="row"><h3 data-t="expenses">Expenses</h3><button id="addExpense" class="small" aria-label="Add">＋</button></div><div id="expenseList"></div></section>
+<section data-screen="money" id="remit" class="card"><div class="row"><h3 data-t="remit">Remittance</h3><button id="addRemit" class="small" aria-label="Add">＋</button></div><p id="remitSummary" class="note"></p><div id="remitList"></div></section>
+<section data-screen="money" id="gifts" class="card"><div class="row"><h3 data-t="given">Money given</h3><button id="addGift" class="small" aria-label="Add">＋</button></div><p class="note" data-t="given_note"></p><div id="giftList"></div></section>
 
-<section id="reports" class="card"><h3 data-t="reports">Reports</h3>
+<section data-screen="reports" id="reports" class="card"><h3 data-t="reports">Reports</h3>
 <div class="seg" role="group"><button id="rMonth" data-rtype="month" data-t="r_month">Month</button><button id="rYear" data-rtype="year" data-t="r_year">Year</button><button id="rAll" data-rtype="all" data-t="r_all">All time</button></div>
 <div class="rep-nav" id="repNav"><button id="rPrev" class="small" aria-label="Previous">‹</button><strong id="repLabel"></strong><button id="rNext" class="small" aria-label="Next">›</button></div>
 <div id="reportBody"></div>
 <div class="actions"><button id="csvReport" class="secondary" data-t="csvReport">CSV (this report)</button><button id="print" class="secondary" data-t="print">Print / PDF</button></div>
 </section>
 
-<section id="backupSec" class="card"><h3 data-t="backupSec">Backup &amp; restore</h3><p class="note" data-t="b_info"></p><p class="note" id="bkLast"></p>
+<section data-screen="money" id="backupSec" class="card"><h3 data-t="backupSec">Backup &amp; restore</h3><p class="note" data-t="b_info"></p><p class="note" id="bkLast"></p>
 <div class="actions"><button id="backup" class="primary" data-t="backup">Export backup</button><button id="restore" class="secondary" data-t="restore">Restore backup</button><button id="csv" class="secondary" data-t="csv">CSV (all records)</button><button id="raw" class="secondary" data-t="b_raw">Export everything (recovery)</button></div>
 <input id="file" type="file" accept=".json,application/json" hidden></section>
 
-<section id="settings" class="card"><h3 data-t="settings">Settings</h3><div class="settings">
+<section data-screen="settings" id="settings" class="card"><h3 data-t="settings">Settings</h3><div class="settings">
 <label><span data-t="language">Language</span><select id="language"><option value="en">English</option><option value="bn">বাংলা</option><option value="tr">Türkçe</option><option value="bg">Български</option><option value="hi">हिन्दी</option><option value="el">Ελληνικά</option></select></label>
 <label><span data-t="theme">Appearance</span><select id="theme"><option value="auto" data-t="themeAuto">Automatic</option><option value="light" data-t="themeLight">Light</option><option value="dark" data-t="themeDark">Dark</option></select></label>
 <label><span data-t="s_basic">Daily wage (€)</span><input id="basic" type="number" inputmode="decimal" step="0.01" min="0"></label>
@@ -92,6 +92,13 @@
 <button type="button" id="aboutBtn">ⓘ <span data-t="m_about">About</span></button></div>
 <button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
 
+<dialog id="quickAddDialog"><div class="dlg"><h3 data-t="add">Add</h3><div class="quick-grid">
+<button type="button" class="quick" data-action="work"><span>🛠️</span><b data-t="qa_work">Add work</b></button>
+<button type="button" class="quick" data-action="ot"><span>⏱️</span><b data-t="qa_ot">Add OT</b></button>
+<button type="button" class="quick" data-action="payments"><span>💰</span><b data-t="qa_salary">Salary</b></button>
+<button type="button" class="quick" data-action="expenses"><span>🧾</span><b data-t="qa_expense">Expense</b></button>
+<button type="button" class="quick" data-action="remittances"><span>🇧🇩</span><b data-t="qa_remit">Remittance</b></button>
+<button type="button" class="quick" data-action="gifts"><span>🎁</span><b data-t="qa_gift">Money given</b></button></div><button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
 <dialog id="editDialog"><form id="editForm" novalidate><h3 id="dlgTitle">Record</h3><div id="fields" class="fields"></div><p id="formErr" class="error" role="alert"></p>
 <div class="dialog-actions"><button class="primary" type="submit" data-t="save">Save</button><button type="button" id="deleteBtn" class="danger" hidden data-t="del">Delete</button><button type="button" class="secondary closeDlg" data-t="cancel">Cancel</button></div></form></dialog>
 
