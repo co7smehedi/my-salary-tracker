@@ -1,8 +1,8 @@
-/* My Salary Tracker v9.1 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
+/* My Salary Tracker v9.2 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.1';
+  var VERSION = '9.2';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts'];
   var LEGACY = 'workEntries';
@@ -48,6 +48,28 @@
   function statusLabel(s) { var k = C.normStatus(s); return k ? tr('st_' + k) : String(s || '') + ' ⚠'; }
   function catLabel(v) { var k = String(v || '').trim().toLowerCase(); return (T.en['cat_' + k]) ? tr('cat_' + k) : String(v || ''); }
   function catKeys() { return ['food', 'transport', 'phone', 'health', 'shopping', 'family', 'other'].concat(state.settings.rentEnabled ? ['rent'] : []); }
+
+  /* ---------- live date & time ---------- */
+  /* Only the two small clock elements are touched each second; render() is never called for a tick (except once when midnight passes,
+     so "Today's duty" and the default dates move to the new day). Uses the device's local time zone and the selected language. */
+  var clockFmt = { lang: '', date: null, time: null }, clockShown = { d: '', t: '' }, clockDay = '', clockTimer = null;
+  function clockFormats() {
+    var l = lang();
+    if (clockFmt.lang !== l) clockFmt = { lang: l, date: new Intl.DateTimeFormat(loc(), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), time: new Intl.DateTimeFormat(loc(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }) };
+    return clockFmt;
+  }
+  function tickClock() {
+    var now = new Date(), d, t;
+    try { var f = clockFormats(); d = f.date.format(now); t = f.time.format(now); }
+    catch (e) { d = C.dateKey(now); t = now.toTimeString().slice(0, 8); }
+    if (d !== clockShown.d) { $('clockDate').textContent = d; clockShown.d = d; }
+    if (t !== clockShown.t) { $('clockTime').textContent = t; clockShown.t = t; }
+    var dk = C.dateKey(now), changed = clockDay !== '' && dk !== clockDay; clockDay = dk;
+    if (changed) render();
+  }
+  function clockLoop() { tickClock(); clockTimer = setTimeout(clockLoop, 1000 - (Date.now() % 1000) + 15); }
+  function startClock() { clearTimeout(clockTimer); clockLoop(); }
+  function stopClock() { clearTimeout(clockTimer); clockTimer = null; }
 
   /* ---------- toast & dialogs ---------- */
   /* Messages are stored as small builder functions (not finished text), so a message that is already on screen is re-written
@@ -122,6 +144,22 @@
   function getAll(s) { return reqP(state.db.transaction(s, 'readonly').objectStore(s).getAll()).then(function (r) { return r || []; }); }
   function txDone(tx) { return new Promise(function (res, rej) { tx.oncomplete = function () { res(); }; tx.onabort = function () { rej(tx.error || new Error('aborted')); }; tx.onerror = function () { }; }); }
   function put(s, x) { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).put(x); return txDone(tx); }
+  // Work records: the one-record-per-date check and the write happen inside ONE transaction, against the data stored on disk
+  // (not the on-screen copy), so a double tap or a second open window can never create a second record for the same day.
+  function putWork(rec) {
+    return new Promise(function (resolve, reject) {
+      var tx; try { tx = state.db.transaction('work', 'readwrite'); } catch (e) { return reject(e); }
+      var os = tx.objectStore('work'), dup = false, rq = os.getAll();
+      tx.oncomplete = function () { resolve(); };
+      tx.onabort = function () { var err = dup ? new Error('duplicate date') : (tx.error || new Error('aborted')); err.dup = dup; reject(err); };
+      tx.onerror = function () { };
+      rq.onsuccess = function () {
+        var clash = (rq.result || []).some(function (x) { return x.date === rec.date && x.id !== rec.id; });
+        if (clash) { dup = true; try { tx.abort(); } catch (e) { } return; }
+        os.put(rec);
+      };
+    });
+  }
   function del(s, id) { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).delete(id); return txDone(tx); }
   async function loadAll() { for (var i = 0; i < STORES.length; i++) state.data[STORES[i]] = await getAll(STORES[i]); }
   async function migrateLegacy() {
@@ -156,6 +194,7 @@
     document.documentElement.lang = lang(); applyTheme();
     document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = tr(el.getAttribute('data-t')); });
     $('month').textContent = fmtMonth(m);
+    $('clock').setAttribute('aria-label', tr('clock_label')); clockShown = { d: '', t: '' }; tickClock();
     $('earned').textContent = money(c.earned); $('days').textContent = c.workedDays; $('ot').textContent = numFmt(c.otHours) + ' h';
     $('formula').textContent = tr('fml', { basic: numFmt(s.basic), ot: numFmt(s.otRate) });
     $('received').textContent = money(c.salaryReceived); $('expTotal').textContent = money(c.expenses);
@@ -173,6 +212,8 @@
       var p = C.dayParts(x, s), sub = numFmt(x.hours || 0) + ' h' + (p.otHours > 0 ? ' · ' + tr('ot') + ' ' + numFmt(p.otHours) + ' h' : '') + (p.status ? '' : ' · ' + tr('unknown_status'));
       return row(fmtDate(x.date) + ' · ' + statusLabel(x.status), sub, money(p.total), 'work', x.id);
     }).join('') || '<small class="empty">' + safe(tr('empty_work')) + '</small>';
+    var dups = R.findDuplicateDates(d.work), dw = $('dupWarn');
+    dw.hidden = dups.length === 0; dw.textContent = dups.length ? tr('dup_warn', { dates: dups.slice(0, 6).map(function (x) { return x.date + ' ×' + x.count; }).join(', ') + (dups.length > 6 ? ' …' : '') }) : '';
     $('paymentList').innerHTML = d.payments.filter(function (x) { return (C.isMonth(x.month) ? x.month : String(x.date || '').slice(0, 7)) === m; }).sort(byDateDesc).map(function (x) {
       return row(fmtDate(x.date), tr('f_salaryMonth') + ': ' + fmtMonth(x.month || String(x.date).slice(0, 7)) + (C.num(x.bus) > 0 ? ' · ' + tr('f_bus').replace(' (€)', '') + ' ' + money(x.bus) : '') + (x.note ? ' · ' + x.note : ''), money(x.amount), 'payments', x.id);
     }).join('') || '<small class="empty">' + safe(tr('empty_payments')) + '</small>';
@@ -204,46 +245,96 @@
     if (t === 'year') return { type: 'year', key: String(state.ryear), label: String(state.ryear) };
     return { type: 'all', key: '', label: tr('r_all') };
   }
-  function reportRows(tot) {
-    var rows = [[tr('r_days'), String(tot.workedDays)], [tr('r_wages'), money(tot.wages)], [tr('r_otPay'), money(tot.otPay)], [tr('r_otHours'), numFmt(tot.otHours) + ' h'], [tr('r_earned'), money(tot.earned), 'hl'],
-      [tr('r_received'), money(tot.salaryReceived)], [tr('r_outstanding'), money(tot.outstanding), tot.outstanding > 0 ? 'hl' : '']];
-    if (tot.overpaid > 0) rows.push([tr('r_overpaid'), money(tot.overpaid), 'warn']);
-    rows.push([tr('r_busDue'), money(tot.busDue)], [tr('r_busRecv'), money(tot.busReceived)], [tr('r_busOut'), money(tot.busOutstanding)]);
-    if (tot.busStatus) rows.push([tr('r_busStatus'), tr('bus_' + tot.busStatus)]);
-    rows.push([tr('r_totalReceived'), money(tot.paymentsTotal)], [tr('r_expenses'), money(tot.expenses)]);
-    if (tot.rentExcluded > 0) rows.push([tr('r_rentExcl'), money(tot.rentExcluded)]);
-    rows.push([tr('r_remitted'), money(tot.remitEur)], [tr('r_bdt'), numFmt(tot.remitBdt) + ' BDT'], [tr('r_giftEur'), money(tot.giftEur)], [tr('r_giftBdt'), money(tot.giftBdt, 'BDT')], [tr('r_balance'), money(tot.balance), 'hl']);
-    return rows;
+  function rw(l, n, u, c) {                              // one report line: label, display text, css class, raw number, unit (raw values feed the CSV)
+    var v = u === 'EUR' ? money(n) : u === 'BDT' ? numFmt(n) + ' BDT' : u === 'days' ? numFmt(n) : u === 'h' ? numFmt(n) + ' h' : String(n);
+    return { l: l, v: v, c: c || '', n: n, u: u };
   }
-  function reportChart(info, per) {
-    var W = 340, H = 150, series = [{ n: tr('r_earned'), c: 'var(--accent)', k: 'earned' }, { n: tr('r_received'), c: 'var(--blue)', k: 'salaryReceived' }, { n: tr('r_expenses'), c: 'var(--danger)', k: 'expenses' }], groups;
-    if (info.type === 'month') {
-      var t = per.total, items = [[tr('r_earned'), t.earned, 'var(--accent)'], [tr('r_received'), t.salaryReceived, 'var(--blue)'], [tr('r_expenses'), t.expenses, 'var(--danger)'], [tr('r_remitted'), t.remitEur, 'var(--warn)'], [tr('r_giftEur'), t.giftEur, 'var(--muted)']];
-      var max = Math.max.apply(null, items.map(function (i) { return i[1]; }).concat([1])), h = '<svg class="chart" viewBox="0 0 340 ' + (items.length * 28 + 6) + '" role="img" aria-label="' + safe(tr('r_chart')) + '">';
-      items.forEach(function (it, i) { var w = Math.max(1, Math.round(it[1] / max * 170)); h += '<text x="0" y="' + (i * 28 + 14) + '">' + safe(it[0]) + '</text><rect x="120" y="' + (i * 28 + 4) + '" width="' + w + '" height="14" rx="4" style="fill:' + it[2] + '"/><text x="' + (126 + w) + '" y="' + (i * 28 + 15) + '">' + safe(numFmt(it[1], 0)) + '</text>'; });
-      return h + '</svg>';
-    }
-    if (info.type === 'year') groups = per.months.map(function (m) { return { l: fmtMonth(m.month, true), v: m }; });
-    else { var years = {}; C.monthsIn(state.data).forEach(function (m) { years[m.slice(0, 4)] = 1; }); groups = Object.keys(years).sort().map(function (y) { return { l: y, v: C.calcPeriod(state.data, state.settings, 'year', y).total }; }); }
-    if (!groups.length) return '';
-    var mx = Math.max.apply(null, groups.map(function (g) { return Math.max(g.v.earned, g.v.salaryReceived, g.v.expenses); }).concat([1])), gw = (W - 10) / groups.length, bw = Math.max(2, Math.min(10, (gw - 4) / 3));
-    var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + (H + 22) + '" role="img" aria-label="' + safe(tr('r_chart')) + '">';
-    groups.forEach(function (g, gi) {
-      series.forEach(function (s, si) { var v = g.v[s.k], bh = Math.round(v / mx * H); svg += '<rect x="' + (5 + gi * gw + si * bw) + '" y="' + (H - bh) + '" width="' + bw + '" height="' + bh + '" rx="1.5" style="fill:' + s.c + '"/>'; });
-      svg += '<text x="' + (5 + gi * gw) + '" y="' + (H + 14) + '">' + safe(g.l) + '</text>';
+  // Earned, Received, Outstanding/Overpaid and Bus allowance are kept in separate groups, never added together.
+  function reportSections(tot) {
+    var sal = [rw(tr('r_wages'), tot.wages, 'EUR'), rw(tr('r_otPay'), tot.otPay, 'EUR'), rw(tr('r_earned'), tot.earned, 'EUR', 'hl'),
+      rw(tr('r_received'), tot.salaryReceived, 'EUR'), rw(tr('r_outstanding'), tot.outstanding, 'EUR', tot.outstanding > 0 ? 'hl' : '')];
+    if (tot.overpaid > 0) sal.push(rw(tr('r_overpaid'), tot.overpaid, 'EUR', 'warn'));
+    var work = [rw(tr('r_days'), tot.workedDays, 'days'), rw(tr('r_hoursWorked'), tot.hoursWorked, 'h'), rw(tr('r_otHours'), tot.otHours, 'h')];
+    [['paidLeaveDays', 'paid_leave'], ['holidayDays', 'holiday'], ['sickDays', 'sick_leave'], ['unpaidLeaveDays', 'unpaid_leave'], ['restDays', 'rest']].forEach(function (p) { if (tot[p[0]] > 0) work.push(rw(tr('st_' + p[1]), tot[p[0]], 'days')); });
+    var bus = [rw(tr('r_busDue'), tot.busDue, 'EUR'), rw(tr('r_busRecv'), tot.busReceived, 'EUR'), rw(tr('r_busOut'), tot.busOutstanding, 'EUR')];
+    if (tot.busStatus) bus.push({ l: tr('r_busStatus'), v: tr('bus_' + tot.busStatus), c: '', n: null, u: '' });
+    var money_ = [rw(tr('r_totalReceived'), tot.paymentsTotal, 'EUR'), rw(tr('r_expenses'), tot.expenses, 'EUR')];
+    if (tot.rentExcluded > 0) money_.push(rw(tr('r_rentExcl'), tot.rentExcluded, 'EUR'));
+    money_.push(rw(tr('r_remitted'), tot.remitEur, 'EUR'));
+    if (tot.remitFee > 0) money_.push(rw(tr('fee_lbl') + ' (EUR)', tot.remitFee, 'EUR'));
+    if (tot.remitBonusEur > 0) money_.push(rw(tr('bonus_eur'), tot.remitBonusEur, 'EUR'));
+    money_.push(rw(tr('r_bdt'), tot.remitBdt, 'BDT'), rw(tr('r_giftEur'), tot.giftEur, 'EUR'));
+    if (tot.giftBdt > 0) money_.push(rw(tr('r_giftBdt'), tot.giftBdt, 'BDT'));
+    money_.push(rw(tr('r_balance'), tot.balance, 'EUR', tot.balance < 0 ? 'warn' : 'hl'));
+    return [{ id: 'salary', title: tr('r_sec_salary'), rows: sal }, { id: 'work', title: tr('r_sec_work'), rows: work },
+      { id: 'bus', title: tr('r_sec_bus'), rows: bus }, { id: 'money', title: tr('r_sec_money'), rows: money_ }];
+  }
+  function hasActivity(t) { return !!t && (t.counts ? (t.counts.work + t.counts.payments + t.counts.expenses + t.counts.remittances + t.counts.gifts) > 0 : true); }
+  // Year report -> one entry per month that has records. All-time report -> one entry per year.
+  function breakdownItems(info, per) {
+    if (info.type === 'year') return per.months.filter(hasActivity).map(function (m) { return { label: fmtMonth(m.month), t: m }; });
+    if (info.type === 'all') { var ys = {}; C.monthsIn(state.data).forEach(function (m) { ys[m.slice(0, 4)] = 1; }); return Object.keys(ys).sort().map(function (y) { return { label: y, t: C.calcPeriod(state.data, state.settings, 'year', y).total }; }); }
+    return [];
+  }
+  function dueText(t) { return t.overpaid > 0 ? tr('r_overpaid') + ' ' + money(t.overpaid) : tr('r_outstanding') + ' ' + money(t.outstanding); }
+  function breakdownHtml(items) {
+    return items.map(function (it) {
+      var t = it.t, pairs = [[tr('r_days'), numFmt(t.workedDays)], [tr('r_otHours'), numFmt(t.otHours) + ' h'], [tr('r_earned'), money(t.earned)], [tr('r_received'), money(t.salaryReceived)],
+        [tr('r_expenses'), money(t.expenses)], [tr('r_remitted'), money(t.remitEur)], [tr('r_giftEur'), money(t.giftEur)], [tr('r_balance'), money(t.balance)]];
+      if (t.busStatus) pairs.push([tr('r_busStatus'), tr('bus_' + t.busStatus)]);
+      return '<div class="mrow"><div class="mhead"><strong>' + safe(it.label) + '</strong><span class="' + (t.overpaid > 0 ? 'warn' : t.outstanding > 0 ? 'hl' : '') + '">' + safe(dueText(t)) + '</span></div><dl class="mgrid">' +
+        pairs.map(function (p) { return '<dt>' + safe(p[0]) + '</dt><dd>' + safe(p[1]) + '</dd>'; }).join('') + '</dl></div>';
+    }).join('');
+  }
+  function cardsHtml(t) {
+    var over = t.overpaid > 0;
+    function card(l, v, cls) { return '<div class="rcard ' + (cls || '') + '"><small>' + safe(l) + '</small><b>' + safe(v) + '</b></div>'; }
+    return '<div class="rcards">' + card(tr('r_earned'), money(t.earned), 'earn') + card(tr('r_received'), money(t.salaryReceived), 'recv') + card(over ? tr('r_overpaid') : tr('r_outstanding'), money(over ? t.overpaid : t.outstanding), over ? 'warn' : t.outstanding > 0 ? 'hl' : '') + '</div>' +
+      '<div class="rcards two">' + card(tr('r_expenses'), money(t.expenses)) + card(tr('r_balance'), money(t.balance), t.balance < 0 ? 'warn' : 'hl') + '</div>';
+  }
+  function barsHtml(t) {                                   // month chart: plain HTML bars, so long labels wrap instead of overflowing
+    var items = [[tr('r_earned'), t.earned, 'var(--accent)'], [tr('r_received'), t.salaryReceived, 'var(--blue)'], [tr('r_expenses'), t.expenses, 'var(--danger)'], [tr('r_remitted'), t.remitEur, 'var(--warn)'], [tr('r_giftEur'), t.giftEur, 'var(--muted)']];
+    var max = Math.max.apply(null, items.map(function (i) { return i[1]; }).concat([1]));
+    return '<div class="bars" role="img" aria-label="' + safe(tr('r_chart')) + '">' + items.map(function (i) {
+      return '<div class="bar-row"><span class="bar-l">' + safe(i[0]) + '</span><span class="bar-t"><i style="width:' + (i[1] > 0 ? Math.max(2, Math.round(i[1] / max * 100)) : 0) + '%;background:' + i[2] + '"></i></span><b>' + safe(money(i[1])) + '</b></div>';
+    }).join('') + '</div>';
+  }
+  function groupedChart(items) {                           // year / all-time chart: Earned, Received, Expenses per group
+    if (!items.length) return '';
+    var series = [{ n: tr('r_earned'), c: 'var(--accent)', k: 'earned' }, { n: tr('r_received'), c: 'var(--blue)', k: 'salaryReceived' }, { n: tr('r_expenses'), c: 'var(--danger)', k: 'expenses' }];
+    var W = 340, H = 140, top = 14, left = 4, mx = Math.max.apply(null, items.map(function (g) { return Math.max(g.t.earned, g.t.salaryReceived, g.t.expenses); }).concat([1]));
+    var gw = (W - left - 2) / items.length, bw = Math.max(2, Math.min(9, (gw - 4) / 3));
+    var svg = '<svg class="chart" viewBox="0 0 ' + W + ' ' + (top + H + 20) + '" role="img" aria-label="' + safe(tr('r_chart')) + '"><text x="' + left + '" y="10">' + safe(money(mx)) + '</text>' +
+      '<line x1="0" x2="' + W + '" y1="' + top + '" y2="' + top + '" class="grid"/><line x1="0" x2="' + W + '" y1="' + (top + H / 2) + '" y2="' + (top + H / 2) + '" class="grid"/><line x1="0" x2="' + W + '" y1="' + (top + H) + '" y2="' + (top + H) + '" class="axis"/>';
+    items.forEach(function (g, gi) {
+      series.forEach(function (s, si) { var bh = Math.round(g.t[s.k] / mx * H); svg += '<rect x="' + (left + gi * gw + si * bw) + '" y="' + (top + H - bh) + '" width="' + bw + '" height="' + bh + '" rx="1.5" style="fill:' + s.c + '"/>'; });
+      var lbl = g.short || g.label; svg += '<text x="' + (left + gi * gw + gw / 2 - 2) + '" y="' + (top + H + 14) + '" text-anchor="middle">' + safe(lbl) + '</text>';
     });
-    svg += '</svg><div class="legend">' + series.map(function (s) { return '<span><i style="background:' + s.c + '"></i>' + safe(s.n) + '</span>'; }).join('') + '</div>';
-    return svg;
+    return svg + '</svg><div class="legend">' + series.map(function (s) { return '<span><i style="background:' + s.c + '"></i>' + safe(s.n) + '</span>'; }).join('') + '</div>';
   }
-  function currentReport() { var info = periodInfo(), per = C.calcPeriod(state.data, state.settings, info.type, info.key); return { info: info, per: per }; }
+  function chartHtml(info, per) {
+    if (info.type === 'month') return barsHtml(per.total);
+    var items = breakdownItems(info, per);
+    if (info.type === 'year') items = per.months.map(function (m) { return { label: fmtMonth(m.month, true), t: m }; });   // all 12 months keep their place on the axis
+    return groupedChart(items);
+  }
+  function currentReport() { var info = periodInfo(), per = C.calcPeriod(state.data, state.settings, info.type, info.key); return { info: info, per: per, sections: reportSections(per.total), items: breakdownItems(info, per) }; }
+  function reportEmpty(r) { var t = r.per.total; return !r.per.months.some(hasActivity) && !t.paymentsTotal && !t.earned; }
+  function sectionsHtml(secs, tag) {
+    return secs.map(function (s) { return '<h4>' + safe(s.title) + '</h4><dl class="rep-list">' + s.rows.map(function (x) { return '<div class="' + x.c + '"><dt>' + safe(x.l) + '</dt><dd>' + safe(x.v) + '</dd></div>'; }).join('') + '</dl>'; }).join('');
+  }
   function renderReport() {
     var r = currentReport();
     document.querySelectorAll('[data-rtype]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-rtype') === state.rtype)); });
-    $('repNav').style.display = state.rtype === 'year' ? 'flex' : 'none';
+    $('repNav').style.display = state.rtype === 'all' ? 'none' : 'flex';
     $('repLabel').textContent = r.info.label;
-    var html = state.rtype === 'month' ? '<p class="muted" style="margin:6px 0 0"><strong>' + safe(r.info.label) + '</strong></p>' : '';
-    html += '<table class="report-table"><tbody>' + reportRows(r.per.total).map(function (x) { return '<tr class="' + (x[2] || '') + '"><td>' + safe(x[0]) + '</td><td>' + safe(x[1]) + '</td></tr>'; }).join('') + '</tbody></table>';
-    html += reportChart(r.info, r.per) + '<p class="note">' + safe(tr('net_note')) + '</p>' + (r.per.total.rentExcluded > 0 ? '<p class="note">' + safe(tr('rent_note')) + '</p>' : '');
+    var html = '';
+    if (reportEmpty(r)) html = '<p class="note">' + safe(tr('r_none')) + '</p>';
+    else {
+      html = cardsHtml(r.per.total) + chartHtml(r.info, r.per) + sectionsHtml(r.sections);
+      if (r.items.length) html += '<h4>' + safe(tr(r.info.type === 'year' ? 'r_sec_monthly' : 'r_sec_yearly')) + '</h4>' + breakdownHtml(r.items);
+    }
+    html += '<p class="note">' + safe(tr('net_note')) + '</p>' + (r.per.total.rentExcluded > 0 ? '<p class="note">' + safe(tr('rent_note')) + '</p>' : '');
     $('reportBody').innerHTML = html;
   }
 
@@ -286,8 +377,14 @@
   }
   function formVal(name) { var el = $('fields').querySelector('[name="' + name + '"]'); return el ? el.value.trim() : ''; }
   function numOrNull(v) { if (v === '') return null; var n = Number(v); return Number.isFinite(n) ? n : NaN; }
+  function recordMonth(kind, r) { return kind === 'payments' && C.isMonth(r.month) ? r.month : String(r.date || '').slice(0, 7); }
   async function saveForm(e) {
-    e.preventDefault(); if (!state.edit) return;
+    e.preventDefault(); if (!state.edit || state.saving) return;          // a second tap while saving is ignored
+    state.saving = true; var btn = document.querySelector('#editForm button[type=submit]'); if (btn) btn.disabled = true;
+    try { await saveFormInner(); } finally { state.saving = false; if (btn) btn.disabled = false; }
+  }
+  async function saveFormInner() {
+    if (!state.edit) return;
     var kind = state.edit.kind, old = state.edit.id != null ? (state.data[kind].find(function (x) { return x.id === state.edit.id; }) || {}) : {}, v = {};
     function fail(k) { setMsg('formErr', M(k)); return false; }
     FIELDS[kind].forEach(function (f) { var raw = formVal(f[0]); v[f[0]] = f[2] === 'number' ? numOrNull(raw) : raw; });
@@ -316,8 +413,18 @@
     if (kind === 'gifts' && !v.person) return fail('err_amount');
     if (kind === 'expenses' && !v.category) v.category = 'other';
     var record = Object.assign({}, old, v, { id: old.id || uid() });
-    try { await put(kind, record); closeDlg('editDialog'); state.edit = null; await refresh(); }
-    catch (e2) { setMsg('formErr', M('err_storage', null, ': ' + (e2 && e2.message || e2))); }
+    try {
+      if (kind === 'work') await putWork(record); else await put(kind, record);
+      closeDlg('editDialog'); state.edit = null;
+      // Show the month the record belongs to (a payment counts in its salary month), so the totals on screen include it.
+      var mk = recordMonth(kind, record), moved = C.isMonth(mk) && mk !== viewMonth();
+      if (moved) state.month = new Date(+mk.slice(0, 4), +mk.slice(5, 7) - 1, 1);
+      await refresh();
+      if (moved) toast(function () { return tr('saved_in', { month: fmtMonth(mk) }); });
+    } catch (e2) {
+      if (e2 && e2.dup) setMsg('formErr', M('err_dup'));
+      else setMsg('formErr', M('err_storage', null, ': ' + (e2 && e2.message || e2)));
+    }
   }
   async function deleteRecord(kind, rec) {
     if (!rec) { toast(M('err_delete')); return false; }
@@ -369,10 +476,32 @@
     d.gifts.forEach(function (x) { rows.push(['money_given', x.date, '', '', x.person, x.amount, String(x.currency || 'EUR').toUpperCase(), '', '', '', '', '', '', x.note || '']); });
     return csvText(rows, [3, 4, 13]);
   }
+  // Report CSV: numbers are plain (12345.67, no currency symbol or thousands separator) so Excel / Numbers read them in any region.
+  function num2(n) { return C.r2(n).toFixed(2); }
   function buildCsvReport() {
-    var r = currentReport(), rows = [['period', 'item', 'value']];
-    reportRows(r.per.total).forEach(function (x) { rows.push([r.info.label, x[0], x[1]]); });
-    return csvText(rows, [1]);
+    var r = currentReport(), t = r.per.total, rows = [['period', 'section', 'item', 'value', 'unit']];
+    r.sections.forEach(function (sec) { sec.rows.forEach(function (x) { rows.push([r.info.label, sec.title, x.l, x.n === null ? x.v : num2(x.n), x.u]); }); });
+    var out = csvText(rows, [0, 1, 2]);
+    if (r.items.length) {
+      var b = [[tr(r.info.type === 'year' ? 'r_month' : 'r_year'), 'worked_days', 'hours_worked', 'overtime_hours', 'earned_eur', 'received_eur', 'outstanding_eur', 'overpaid_eur', 'bus_due_eur', 'bus_received_eur', 'expenses_eur', 'sent_home_eur', 'money_given_eur', 'cash_left_eur']];
+      r.items.forEach(function (it) { var x = it.t; b.push([it.label, x.workedDays, num2(x.hoursWorked), num2(x.otHours), num2(x.earned), num2(x.salaryReceived), num2(x.outstanding), num2(x.overpaid), num2(x.busDue), num2(x.busReceived), num2(x.expenses), num2(x.remitEur), num2(x.giftEur), num2(x.balance)]); });
+      out += '\r\n\r\n' + csvText(b, [0]).slice(1);
+    }
+    return out;
+  }
+  function buildPrintHtml() {
+    var r = currentReport(), t = r.per.total, over = t.overpaid > 0;
+    var h = '<h1>' + safe(tr('print_title')) + '</h1><p class="muted">' + safe(tr('r_report')) + ': <strong>' + safe(r.info.label) + '</strong> · ' + safe(tr('r_created')) + ': ' + safe(fmtStamp(new Date())) + '</p>';
+    if (reportEmpty(r)) return h + '<p>' + safe(tr('r_none')) + '</p>';
+    h += '<table class="p-sum"><thead><tr><th>' + safe(tr('r_earned')) + '</th><th>' + safe(tr('r_received')) + '</th><th>' + safe(over ? tr('r_overpaid') : tr('r_outstanding')) + '</th><th>' + safe(tr('r_balance')) + '</th></tr></thead><tbody><tr><td>' +
+      safe(money(t.earned)) + '</td><td>' + safe(money(t.salaryReceived)) + '</td><td>' + safe(money(over ? t.overpaid : t.outstanding)) + '</td><td>' + safe(money(t.balance)) + '</td></tr></tbody></table>';
+    h += chartHtml(r.info, r.per);
+    r.sections.forEach(function (sec) { h += '<table class="p-sec"><caption>' + safe(sec.title) + '</caption><tbody>' + sec.rows.map(function (x) { return '<tr><td>' + safe(x.l) + '</td><td>' + safe(x.v) + '</td></tr>'; }).join('') + '</tbody></table>'; });
+    if (r.items.length) {
+      h += '<table class="p-break"><caption>' + safe(tr(r.info.type === 'year' ? 'r_sec_monthly' : 'r_sec_yearly')) + '</caption><thead><tr>' + [r.info.type === 'year' ? 'r_month' : 'r_year', 'r_days', 'r_earned', 'r_received', 'r_outstanding', 'r_expenses', 'r_balance'].map(function (k) { return '<th>' + safe(tr(k)) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        r.items.map(function (it) { var x = it.t; return '<tr><td>' + safe(it.label) + '</td><td>' + numFmt(x.workedDays) + '</td><td>' + safe(money(x.earned)) + '</td><td>' + safe(money(x.salaryReceived)) + '</td><td>' + safe(x.overpaid > 0 ? tr('r_overpaid') + ' ' + money(x.overpaid) : money(x.outstanding)) + '</td><td>' + safe(money(x.expenses)) + '</td><td>' + safe(money(x.balance)) + '</td></tr>'; }).join('') + '</tbody></table>';
+    }
+    return h + '<p class="muted">' + safe(tr('net_note')) + '</p>';
   }
 
   /* ---------- restore (validate -> safety backup -> all-or-nothing write) ---------- */
@@ -501,7 +630,8 @@
     $('prev').onclick = function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); render(); };
     $('next').onclick = function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); render(); };
     document.querySelectorAll('[data-rtype]').forEach(function (b) { b.onclick = function () { state.rtype = b.getAttribute('data-rtype'); if (state.rtype === 'year') state.ryear = state.month.getFullYear(); renderReport(); }; });
-    $('rPrev').onclick = function () { state.ryear--; renderReport(); }; $('rNext').onclick = function () { state.ryear++; renderReport(); };
+    $('rPrev').onclick = function () { if (state.rtype === 'month') { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); render(); } else { state.ryear--; renderReport(); } };
+    $('rNext').onclick = function () { if (state.rtype === 'month') { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); render(); } else { state.ryear++; renderReport(); } };
     $('language').onchange = function () { state.settings.language = $('language').value; persistSettings(); render(); };
     $('theme').onchange = function () { state.settings.theme = $('theme').value; persistSettings(); render(); };
     $('saveSettings').onclick = function () {
@@ -525,17 +655,14 @@
     $('rsCancel').onclick = function () { state.pending = null; closeDlg('restoreDlg'); };
     $('csv').onclick = function () { saveFile('salary-tracker-' + today() + '.csv', buildCsvAll(), 'text/csv'); };
     $('csvReport').onclick = function () { saveFile('salary-tracker-report-' + today() + '.csv', buildCsvReport(), 'text/csv'); };
-    $('print').onclick = function () {
-      var r = currentReport();
-      $('printArea').innerHTML = '<h1>' + safe(tr('print_title')) + '</h1><p class="muted">' + safe(tr('r_report')) + ': ' + safe(r.info.label) + '</p><table><tbody>' + reportRows(r.per.total).map(function (x) { return '<tr><td>' + safe(x[0]) + '</td><td>' + safe(x[1]) + '</td></tr>'; }).join('') + '</tbody></table>' + reportChart(r.info, r.per) + '<p class="muted">' + safe(tr('net_note')) + '</p>';
-      window.print();
-    };
+    $('print').onclick = function () { $('printArea').innerHTML = buildPrintHtml(); window.print(); };
     window.addEventListener('afterprint', function () { $('printArea').innerHTML = ''; });
   }
 
   /* ---------- start ---------- */
   async function init() {
-    loadSettings(); applyTheme(); bind(); render();
+    loadSettings(); applyTheme(); bind(); render(); startClock();
+    document.addEventListener('visibilitychange', function () { if (document.hidden) stopClock(); else startClock(); });
     try { state.db = await openDB(); await loadAll(); await migrateLegacy(); }
     catch (e) { state.dbError = e; toast(M('err_storage', null, ': ' + (e && e.message || e))); }
     render();
@@ -549,5 +676,5 @@
     }
   }
   window.MSTReady = init();
-  window.MSTDebug = { state: state, validateBackup: validateBackup, buildBackup: buildBackup, buildCsvAll: buildCsvAll, writeAll: writeAll, planMerge: R.planMerge };
+  window.MSTDebug = { refresh: refresh, render: render, tickClock: tickClock, buildCsvReport: buildCsvReport, buildPrintHtml: buildPrintHtml, currentReport: currentReport, state: state, validateBackup: validateBackup, buildBackup: buildBackup, buildCsvAll: buildCsvAll, writeAll: writeAll, planMerge: R.planMerge };
 })();

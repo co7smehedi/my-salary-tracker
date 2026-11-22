@@ -67,11 +67,18 @@
     var e = (data.expenses || []).filter(function (x) { return String(x.date || '').slice(0, 7) === m; });
     var r = (data.remittances || []).filter(function (x) { return String(x.date || '').slice(0, 7) === m; });
     var g = (data.gifts || []).filter(function (x) { return String(x.date || '').slice(0, 7) === m; });
-    var out = { month: m, workedDays: 0, otHours: 0, wages: 0, otPay: 0, earned: 0, busDue: 0, busReceived: 0,
+    var out = { month: m, workedDays: 0, hoursWorked: 0, restDays: 0, paidLeaveDays: 0, holidayDays: 0, sickDays: 0, unpaidLeaveDays: 0, otHours: 0, wages: 0, otPay: 0, earned: 0, busDue: 0, busReceived: 0,
       paymentsTotal: 0, salaryReceived: 0, outstanding: 0, overpaid: 0,
       busOutstanding: 0, busStatus: 'notdue', expenses: 0, rentExcluded: 0, remitEur: 0, remitFee: 0, remitBonusEur: 0, remitBdt: 0, giftEur: 0, giftBdt: 0, giftOther: 0, balance: 0,
       counts: { work: w.length, payments: p.length, expenses: e.length, remittances: r.length, gifts: g.length } };
-    w.forEach(function (x) { var d = dayParts(x, s); if (d.status === 'worked') { out.workedDays++; out.otHours += d.otHours; } out.wages += d.base; out.otPay += d.otPay; });
+    w.forEach(function (x) {
+      var d = dayParts(x, s);
+      if (d.status === 'worked') { out.workedDays++; out.otHours += d.otHours; out.hoursWorked += num(x.hours); }
+      else if (d.status === 'rest') out.restDays++; else if (d.status === 'paid_leave') out.paidLeaveDays++; else if (d.status === 'holiday') out.holidayDays++;
+      else if (d.status === 'sick_leave') out.sickDays++; else if (d.status === 'unpaid_leave') out.unpaidLeaveDays++;
+      out.wages += d.base; out.otPay += d.otPay;
+    });
+    out.hoursWorked = r2(out.hoursWorked);
     out.wages = r2(out.wages); out.otPay = r2(out.otPay); out.otHours = r2(out.otHours);
     out.earned = r2(out.wages + out.otPay);
     out.busDue = out.workedDays > 0 ? r2(s.bus) : 0;
@@ -102,7 +109,7 @@
   }
 
   function sum(list) {
-    var keys = ['workedDays', 'otHours', 'wages', 'otPay', 'earned', 'busDue', 'busReceived', 'busOutstanding', 'paymentsTotal', 'salaryReceived', 'outstanding', 'overpaid', 'expenses', 'rentExcluded', 'remitEur', 'remitFee', 'remitBonusEur', 'remitBdt', 'giftEur', 'giftBdt', 'giftOther', 'balance'];
+    var keys = ['workedDays', 'hoursWorked', 'restDays', 'paidLeaveDays', 'holidayDays', 'sickDays', 'unpaidLeaveDays', 'otHours', 'wages', 'otPay', 'earned', 'busDue', 'busReceived', 'busOutstanding', 'paymentsTotal', 'salaryReceived', 'outstanding', 'overpaid', 'expenses', 'rentExcluded', 'remitEur', 'remitFee', 'remitBonusEur', 'remitBdt', 'giftEur', 'giftBdt', 'giftOther', 'balance'];
     var t = {}; keys.forEach(function (k) { t[k] = 0; });
     list.forEach(function (c) { keys.forEach(function (k) { t[k] += c[k]; }); });
     keys.forEach(function (k) { t[k] = r2(t[k]); });

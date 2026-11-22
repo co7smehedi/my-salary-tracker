@@ -1,4 +1,4 @@
-# My Salary Tracker — version 9.1
+# My Salary Tracker — version 9.2
 
 A private salary, expense and money tracker that works offline on iPhone and Android.
 **Your records stay on your phone. Nothing is sent to any server.**
@@ -8,7 +8,7 @@ A private salary, expense and money tracker that works offline on iPhone and And
 `index.html` `style.css` `app.js` `calc.js` `backup-rules.js` `i18n.js` `service-worker.js` `manifest.json` `recover.html` `recover.js`
 `icon-192.png` `icon-512.png` `icon-maskable-512.png` `apple-touch-icon.png` `README.md`
 
-**New in 9.1:** `backup-rules.js` and `recover.js`. Upload all 15 files (see step 1 below).
+The file list is the same as 9.1 (no new files). Upload all 15 files (see step 1 below).
 
 There is **no `icons` folder**. All icons sit next to the other files.
 
@@ -36,6 +36,28 @@ Files with the same names are replaced automatically. Do not delete anything fir
 - **Security:** a Content-Security-Policy blocks injected scripts and any connection to other websites. The recovery page was changed only to move its script into `recover.js`.
 - Error messages and notices that are already on screen switch language immediately when you change the language.
 - An automated test suite (74 checks) was added. It is delivered as a separate ZIP and is not part of the app.
+
+## 1c. What changed in 9.2 (bug-fix and Reports release — no records, settings or database structure were changed)
+
+**Fixed: totals wrong after adding records**
+- **Double tap on Save** could store the same record twice, so a day was counted twice (€50 instead of €25) or a payment was counted twice. Saving is now locked while it is in progress, and the “one work record per date” check and the write happen together in one database transaction, so even a second open window cannot create a second record for the same day.
+- **A record saved in a different month** than the one on screen was saved correctly but the screen still showed the old month’s totals, which looked like “the total did not change”. The app now switches to the month the record belongs to (a payment goes to its *salary month*) and says “Saved to <month>”.
+- **Existing duplicate days:** if your data already has two work records for the same date, they are **not changed or deleted**. A warning above Work records lists the dates so you can delete the extra one yourself.
+
+**New: live date and time** at the top of the dashboard, updated every second, in the selected language and your phone’s local time. Only the clock text changes each second; the page is not redrawn. When midnight passes, the page refreshes once so “Today’s duty” moves to the new day.
+
+**Reports, redesigned for phones**
+- **Month / Year / All time** buttons; the arrows move month by month (Month) or year by year (Year).
+- Summary cards: **Earned**, **Received**, **Outstanding** (or **Overpaid**), **Expenses**, **Cash left**.
+- A bar chart (month) or Earned / Received / Expenses chart (year and all time).
+- Sections: **Salary**, **Work days & overtime** (worked days, hours, overtime hours, leave / holiday / sick / rest days), **Bus allowance (separate from salary)**, **Money flow** (money received, expenses, sent home with fee, bonus and BDT, money given, cash left).
+- **Monthly breakdown** for a year report and **Yearly breakdown** for all time, as one readable block per month or year. Nothing is a wide table, so nothing scrolls sideways on iPhone.
+- **CSV (this report):** plain numbers (for example `77.77`, no currency symbol) with a unit column, so Excel / Numbers read it in any region, plus a second table with the monthly or yearly breakdown.
+- **Print / PDF:** title, period, creation time, summary, chart, sections and breakdown table, laid out for A4 with print-safe colours.
+
+Earned salary, salary received, outstanding / overpaid and bus allowance are always shown as separate numbers. The calculation rules did not change.
+
+The automated tests for 9.2 are delivered as a separate ZIP (they are not part of the app).
 
 ## 2. Very important — first use after updating
 
@@ -76,7 +98,7 @@ Your records are never touched by updates.
 
 ## 6. What the app does
 
-- **Dashboard:** earned, received, outstanding (or *Overpaid*), expenses, worked days, overtime.
+- **Dashboard:** live date and time, earned, received, outstanding (or *Overpaid*), expenses, worked days, overtime.
 - **Work records:** worked, rest day, paid leave, unpaid leave, sick leave, holiday. Add, edit, delete. One record per date.
 - **Salary:** €25 per day for up to 8 hours, €2.77 for each extra hour (all editable). Example: 10 hours = €25.00 + 2 × €2.77 = **€30.54**.
 - **Salary payments:** partial payments, outstanding balance, overpayments. Pick the salary month for every payment.
@@ -84,7 +106,7 @@ Your records are never touched by updates.
 - **Expenses:** categories; **Rent is off by default** (turn it on in Settings).
 - **Remittance:** EUR → BDT with exchange rate, fee, bonus % (default 2.5 %), optional “actual BDT received”.
 - **Money given:** gifts/help, in EUR or BDT. It is **not** a loan and is never counted as money owed to you.
-- **Reports:** month, year and all-time, with charts; CSV export; Print / PDF (use the Share button → *Save to Files* in the print preview on iPhone).
+- **Reports:** month, year and all-time, with summary cards, charts and monthly / yearly breakdown; CSV export; Print / PDF (use the Share button → *Save to Files* in the print preview on iPhone).
 - **Languages:** English, বাংলা, Türkçe, Български, हिन्दी, Ελληνικά. **Dark and light mode** (Settings → Appearance).
 
 ## 7. Not included yet (honest list)

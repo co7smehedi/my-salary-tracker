@@ -17,6 +17,7 @@
 <body>
 <main class="app" id="top">
 <header><div><small data-t="appTag">PRIVATE • OFFLINE FIRST</small><h1>My Salary Tracker</h1></div><button id="menuBtn" class="iconbtn" aria-label="Menu" aria-haspopup="dialog">⋮</button></header>
+<div id="clock" class="clock" role="timer"><span id="clockDate"></span><b id="clockTime"></b></div>
 <div id="backupBanner" class="banner" role="status" hidden><p id="bannerText"></p><div class="actions"><button id="bannerExport" type="button" class="primary" data-t="b_banner_btn">Export backup now</button><button id="bannerLater" type="button" class="secondary" data-t="b_banner_later">Remind me tomorrow</button></div></div>
 <div class="month"><button id="prev" aria-label="Previous month">‹</button><strong id="month" aria-live="polite"></strong><button id="next" aria-label="Next month">›</button></div>
 
@@ -30,7 +31,7 @@
 </div>
 
 <section class="card"><div class="row"><h3 data-t="duty">Today's duty</h3><button id="record" class="primary" data-t="record">＋ Record</button></div><p id="today"></p></section>
-<section id="work" class="card"><div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small" aria-label="Add">＋</button></div><div id="workList"></div></section>
+<section id="work" class="card"><div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small" aria-label="Add">＋</button></div><p id="dupWarn" class="note warnline" role="status" hidden></p><div id="workList"></div></section>
 <section id="payments" class="card"><div class="row"><h3 data-t="payments">Salary payments</h3><button id="addPayment" class="small" aria-label="Add">＋</button></div><p id="busLine" class="note"></p><div id="paymentList"></div></section>
 <section id="expenses" class="card"><div class="row"><h3 data-t="expenses">Expenses</h3><button id="addExpense" class="small" aria-label="Add">＋</button></div><div id="expenseList"></div></section>
 <section id="remit" class="card"><div class="row"><h3 data-t="remit">Remittance</h3><button id="addRemit" class="small" aria-label="Add">＋</button></div><p id="remitSummary" class="note"></p><div id="remitList"></div></section>

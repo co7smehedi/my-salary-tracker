@@ -93,3 +93,50 @@ dialog h3{margin:0}
   #printArea td{border-top:1px solid #bbb;padding:6px 0;font-size:13px}#printArea td:last-child{text-align:right;font-weight:700}
   #printArea .chart text{fill:#333}
 }
+
+/* v9.2: live clock, duplicate warning, reports (mobile first: nothing here has a fixed width or nowrap, long text wraps) */
+html,body{overflow-x:hidden}
+.card,.app{min-width:0}
+.clock{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px;margin:6px 0 2px;padding:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.clock span{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.clock b{font-size:20px;letter-spacing:.5px;font-variant-numeric:tabular-nums;color:var(--accent)}
+.warnline{color:var(--warn);font-weight:600}
+#reports h4{margin:18px 0 4px;font-size:14px;color:var(--muted);text-transform:none}
+.rcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.rcards.two{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:0}
+.rcard{background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:10px;min-width:0}
+.rcard small{display:block;font-size:11px;line-height:1.25;overflow-wrap:anywhere}
+.rcard b{display:block;margin-top:4px;font-size:16px;overflow-wrap:anywhere}
+.rcard.earn b{color:var(--accent)}.rcard.recv b{color:var(--blue)}.rcard.hl b{color:var(--accent)}.rcard.warn b{color:var(--warn)}
+.rep-list{margin:0}
+.rep-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.rep-list dt{color:var(--text);overflow-wrap:anywhere;min-width:0}
+.rep-list dd{margin:0;font-weight:700;text-align:right;overflow-wrap:anywhere;max-width:48vw}
+.rep-list .hl dd,.rep-list .hl dt{color:var(--accent)}.rep-list .warn dd,.rep-list .warn dt{color:var(--warn)}
+.bars{display:grid;gap:8px;margin:12px 0}
+.bar-row{display:grid;grid-template-columns:minmax(0,34%) minmax(0,1fr) auto;align-items:center;gap:8px;font-size:12px}
+.bar-l{color:var(--muted);overflow-wrap:anywhere}
+.bar-t{height:12px;background:var(--surface2);border-radius:6px;overflow:hidden;display:block}
+.bar-t i{display:block;height:100%;border-radius:6px}
+.bar-row b{font-size:12px;text-align:right;overflow-wrap:anywhere;max-width:30vw}
+.chart text{font-size:11px}
+.chart .grid{stroke:var(--line);stroke-width:1;stroke-dasharray:3 3}.chart .axis{stroke:var(--muted);stroke-width:1}
+.mrow{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0;background:var(--surface2)}
+.mhead{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 10px;font-size:14px}
+.mhead span{font-weight:700;font-size:13px;overflow-wrap:anywhere}.mhead .hl{color:var(--accent)}.mhead .warn{color:var(--warn)}
+.mgrid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;margin:8px 0 0;font-size:12px}
+.mgrid dt{color:var(--muted);overflow-wrap:anywhere}.mgrid dd{margin:0;text-align:right;font-weight:600;overflow-wrap:anywhere}
+@media(max-width:360px){.rcards{grid-template-columns:repeat(2,minmax(0,1fr))}.bar-row{grid-template-columns:1fr auto}.bar-t{grid-column:1/-1;order:3}}
+@media print{
+  #printArea{-webkit-print-color-adjust:exact;print-color-adjust:exact;--accent:#0f7a58;--blue:#1d63c4;--danger:#c42f45;--warn:#8a5b00;--muted:#555;--line:#bbb;--surface2:#e6eaf0}
+  #printArea table{page-break-inside:avoid;break-inside:avoid}
+  #printArea caption{text-align:left;font-weight:700;padding:10px 0 2px;font-size:13px}
+  #printArea .p-sum th,#printArea .p-break th{font-size:11px;text-align:left;color:#444;padding:4px 6px 4px 0}
+  #printArea .p-sum td{font-size:15px;font-weight:700;border-top:1px solid #bbb;padding:6px 6px 6px 0;text-align:left}
+  #printArea .p-break td,#printArea .p-break th{font-size:11px;padding:5px 4px 5px 0;text-align:left}
+  #printArea .p-break td:last-child,#printArea .p-sec td:last-child{text-align:right}
+  #printArea .p-break td{font-weight:400}
+  #printArea .bars{max-width:100%}#printArea .bar-row b{max-width:none}
+  #printArea .chart{max-width:100%;height:auto}#printArea .chart text{fill:#333}
+  #printArea .legend{color:#333}
+}

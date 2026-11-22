@@ -72,7 +72,9 @@
     b_doneMerge:'Backup merged. Nothing was deleted.', b_doneReplace:'Backup restored. Current data was replaced.', b_invalid:'This is not a valid backup file. Nothing was changed.', b_fail:'Restore failed. Nothing was changed.', b_records:'records',
     m_about:'About', about_text:'My Salary Tracker keeps your salary, expenses and transfers only on this device. Nothing is sent to a server.', m_recover:'Recover data (read-only)', ver:'Version', saved:'Saved', upd:'A new version is ready.', upd_btn:'Reload', fml:'€{basic} per day + €{ot} per overtime hour',
     given_note:'Money given is a gift or help. It is not a loan and is never counted as money owed to you.', rent_note:'Rent is not counted in totals (enable it in Settings).', net_note:'Cash left = money received − expenses − sent home − money given (EUR).', print_title:'My Salary Tracker report',
-    unknown_status:'unrecognised status', rate_hint:'Estimated BDT', est_bdt:'Estimated BDT', bdt:'BDT', bonus_eur:'Bonus (€)', fee_lbl:'Fee', rate_lbl:'Rate'
+    unknown_status:'unrecognised status', rate_hint:'Estimated BDT', est_bdt:'Estimated BDT', bdt:'BDT', bonus_eur:'Bonus (€)', fee_lbl:'Fee', rate_lbl:'Rate',
+    saved_in:'Saved to {month}', dup_warn:'More than one work record exists for: {dates}. Every record is counted, so earned salary may be too high. Delete the extra record.', clock_label:'Current date and time', r_sec_salary:'Salary', r_sec_work:'Work days & overtime', r_sec_bus:'Bus allowance (separate from salary)', r_sec_money:'Money flow', r_sec_monthly:'Monthly breakdown', r_sec_yearly:'Yearly breakdown', r_none:'No records in this period.', r_created:'Created',
+    r_hoursWorked:'Hours worked'
   };
   T.bn = {
     st_title:'স্টোরেজ ও ব্যাকআপ',
@@ -144,7 +146,9 @@
     b_doneMerge:'ব্যাকআপ মার্জ হয়েছে। কিছুই মোছা হয়নি।', b_doneReplace:'ব্যাকআপ ফিরিয়ে আনা হয়েছে। বর্তমান ডেটা প্রতিস্থাপিত হয়েছে।', b_invalid:'এটি সঠিক ব্যাকআপ ফাইল নয়। কিছুই পরিবর্তন হয়নি।', b_fail:'রিস্টোর ব্যর্থ হয়েছে। কিছুই পরিবর্তন হয়নি।', b_records:'টি রেকর্ড',
     m_about:'সম্পর্কে', about_text:'My Salary Tracker আপনার বেতন, খরচ ও ট্রান্সফারের তথ্য শুধু এই ডিভাইসে রাখে। কোনো সার্ভারে কিছু পাঠানো হয় না।', m_recover:'ডেটা উদ্ধার (শুধু পড়া)', ver:'সংস্করণ', saved:'সেভ হয়েছে', upd:'নতুন সংস্করণ প্রস্তুত।', upd_btn:'রিলোড', fml:'দিনে €{basic} + ওভারটাইম প্রতি ঘণ্টা €{ot}',
     given_note:'দেওয়া টাকা উপহার বা সাহায্য। এটি ঋণ নয় এবং কখনো পাওনা হিসেবে গণ্য হয় না।', rent_note:'ভাড়া মোটের হিসাবে ধরা হয়নি (সেটিংসে চালু করা যায়)।', net_note:'হাতে আছে = প্রাপ্ত টাকা − খরচ − দেশে পাঠানো − টাকা দেওয়া (EUR)।', print_title:'My Salary Tracker রিপোর্ট',
-    unknown_status:'অজানা অবস্থা', rate_hint:'আনুমানিক BDT', est_bdt:'আনুমানিক BDT', bdt:'BDT', bonus_eur:'বোনাস (€)', fee_lbl:'ফি', rate_lbl:'হার'
+    unknown_status:'অজানা অবস্থা', rate_hint:'আনুমানিক BDT', est_bdt:'আনুমানিক BDT', bdt:'BDT', bonus_eur:'বোনাস (€)', fee_lbl:'ফি', rate_lbl:'হার',
+    saved_in:'{month}-এ সেভ হয়েছে', dup_warn:'এই তারিখগুলোর জন্য একাধিক কাজের রেকর্ড আছে: {dates}। প্রতিটি রেকর্ড গণনা হয়, তাই অর্জিত বেতন বেশি দেখাতে পারে। বাড়তি রেকর্ডটি মুছে ফেলুন।', clock_label:'বর্তমান তারিখ ও সময়', r_sec_salary:'বেতন', r_sec_work:'কাজের দিন ও ওভারটাইম', r_sec_bus:'বাস ভাতা (বেতন থেকে আলাদা)', r_sec_money:'টাকার হিসাব', r_sec_monthly:'মাসভিত্তিক হিসাব', r_sec_yearly:'বছরভিত্তিক হিসাব', r_none:'এই সময়ে কোনো রেকর্ড নেই।', r_created:'তৈরি',
+    r_hoursWorked:'কাজের ঘণ্টা'
   };
   T.tr = {
     st_title:'Depolama ve yedek',
@@ -216,7 +220,9 @@
     b_doneMerge:'Yedek birleştirildi. Hiçbir şey silinmedi.', b_doneReplace:'Yedek geri yüklendi. Mevcut veriler değiştirildi.', b_invalid:'Bu geçerli bir yedek dosyası değil. Hiçbir şey değişmedi.', b_fail:'Geri yükleme başarısız. Hiçbir şey değişmedi.', b_records:'kayıt',
     m_about:'Hakkında', about_text:'My Salary Tracker maaş, gider ve transfer bilgilerinizi yalnızca bu cihazda tutar. Hiçbir şey sunucuya gönderilmez.', m_recover:'Verileri kurtar (salt okunur)', ver:'Sürüm', saved:'Kaydedildi', upd:'Yeni sürüm hazır.', upd_btn:'Yenile', fml:'Günlük €{basic} + fazla mesai saati başına €{ot}',
     given_note:'Verilen para hediye veya yardımdır. Borç değildir ve alacak olarak sayılmaz.', rent_note:'Kira toplamlara dahil edilmez (Ayarlar’dan etkinleştirin).', net_note:'Kalan nakit = alınan para − giderler − eve gönderilen − verilen para (EUR).', print_title:'My Salary Tracker raporu',
-    unknown_status:'tanınmayan durum', rate_hint:'Tahmini BDT', est_bdt:'Tahmini BDT', bdt:'BDT', bonus_eur:'Bonus (€)', fee_lbl:'Ücret', rate_lbl:'Kur'
+    unknown_status:'tanınmayan durum', rate_hint:'Tahmini BDT', est_bdt:'Tahmini BDT', bdt:'BDT', bonus_eur:'Bonus (€)', fee_lbl:'Ücret', rate_lbl:'Kur',
+    saved_in:'{month} ayına kaydedildi', dup_warn:'Şu tarihler için birden fazla çalışma kaydı var: {dates}. Her kayıt hesaba katılır, bu yüzden kazanılan maaş fazla görünebilir. Fazla kaydı silin.', clock_label:'Geçerli tarih ve saat', r_sec_salary:'Maaş', r_sec_work:'Çalışma günleri ve fazla mesai', r_sec_bus:'Yol ücreti (maaştan ayrı)', r_sec_money:'Para akışı', r_sec_monthly:'Aylık döküm', r_sec_yearly:'Yıllık döküm', r_none:'Bu dönemde kayıt yok.', r_created:'Oluşturuldu',
+    r_hoursWorked:'Çalışılan saat'
   };
   T.bg = {
     st_title:'Хранилище и архив',
@@ -288,7 +294,9 @@
     b_doneMerge:'Архивът е обединен. Нищо не е изтрито.', b_doneReplace:'Архивът е възстановен. Текущите данни са заменени.', b_invalid:'Това не е валиден архивен файл. Нищо не е променено.', b_fail:'Възстановяването не успя. Нищо не е променено.', b_records:'записа',
     m_about:'Относно', about_text:'My Salary Tracker съхранява заплатата, разходите и преводите ви само на това устройство. Нищо не се изпраща към сървър.', m_recover:'Възстановяване на данни (само четене)', ver:'Версия', saved:'Запазено', upd:'Нова версия е готова.', upd_btn:'Презареди', fml:'€{basic} на ден + €{ot} за час извънреден труд',
     given_note:'Дадените пари са подарък или помощ. Те не са заем и никога не се водят като дължими към вас.', rent_note:'Наемът не се включва в сумите (включва се от Настройки).', net_note:'Остатък = получени пари − разходи − изпратено у дома − дадени пари (EUR).', print_title:'Отчет на My Salary Tracker',
-    unknown_status:'непознат статус', rate_hint:'Приблизителни BDT', est_bdt:'Приблизителни BDT', bdt:'BDT', bonus_eur:'Бонус (€)', fee_lbl:'Такса', rate_lbl:'Курс'
+    unknown_status:'непознат статус', rate_hint:'Приблизителни BDT', est_bdt:'Приблизителни BDT', bdt:'BDT', bonus_eur:'Бонус (€)', fee_lbl:'Такса', rate_lbl:'Курс',
+    saved_in:'Запазено в {month}', dup_warn:'Има повече от един работен запис за: {dates}. Всеки запис се отчита, затова спечелената заплата може да е завишена. Изтрийте излишния запис.', clock_label:'Текуща дата и час', r_sec_salary:'Заплата', r_sec_work:'Работни дни и извънреден труд', r_sec_bus:'Надбавка за транспорт (отделно от заплатата)', r_sec_money:'Движение на парите', r_sec_monthly:'Разбивка по месеци', r_sec_yearly:'Разбивка по години', r_none:'Няма записи за този период.', r_created:'Създадено',
+    r_hoursWorked:'Отработени часове'
   };
   T.hi = {
     st_title:'स्टोरेज और बैकअप',
@@ -360,7 +368,9 @@
     b_doneMerge:'बैकअप मर्ज हो गया। कुछ भी नहीं हटा।', b_doneReplace:'बैकअप पुनर्स्थापित हो गया। मौजूदा डेटा बदल दिया गया।', b_invalid:'यह सही बैकअप फ़ाइल नहीं है। कुछ भी नहीं बदला।', b_fail:'पुनर्स्थापना विफल रही। कुछ भी नहीं बदला।', b_records:'रिकॉर्ड',
     m_about:'के बारे में', about_text:'My Salary Tracker आपका वेतन, खर्च और ट्रांसफ़र सिर्फ़ इसी डिवाइस पर रखता है। कुछ भी सर्वर को नहीं भेजा जाता।', m_recover:'डेटा रिकवर करें (सिर्फ़ पढ़ने के लिए)', ver:'संस्करण', saved:'सेव हो गया', upd:'नया संस्करण तैयार है।', upd_btn:'रीलोड', fml:'प्रतिदिन €{basic} + प्रति ओवरटाइम घंटा €{ot}',
     given_note:'दिए गए पैसे उपहार या मदद हैं। यह कर्ज़ नहीं है और कभी आपके लिए बकाया नहीं गिना जाता।', rent_note:'किराया कुल में नहीं गिना गया (सेटिंग्स में चालू करें)।', net_note:'हाथ में नकद = प्राप्त पैसे − खर्च − घर भेजा − दिए गए पैसे (EUR)।', print_title:'My Salary Tracker रिपोर्ट',
-    unknown_status:'अज्ञात स्थिति', rate_hint:'अनुमानित BDT', est_bdt:'अनुमानित BDT', bdt:'BDT', bonus_eur:'बोनस (€)', fee_lbl:'शुल्क', rate_lbl:'दर'
+    unknown_status:'अज्ञात स्थिति', rate_hint:'अनुमानित BDT', est_bdt:'अनुमानित BDT', bdt:'BDT', bonus_eur:'बोनस (€)', fee_lbl:'शुल्क', rate_lbl:'दर',
+    saved_in:'{month} में सेव हो गया', dup_warn:'इन तारीखों के लिए एक से ज़्यादा काम के रिकॉर्ड हैं: {dates}। हर रिकॉर्ड गिना जाता है, इसलिए कमाया गया वेतन ज़्यादा दिख सकता है। अतिरिक्त रिकॉर्ड हटा दें।', clock_label:'वर्तमान तारीख और समय', r_sec_salary:'वेतन', r_sec_work:'काम के दिन और ओवरटाइम', r_sec_bus:'बस भत्ता (वेतन से अलग)', r_sec_money:'पैसों का हिसाब', r_sec_monthly:'महीने के अनुसार ब्योरा', r_sec_yearly:'साल के अनुसार ब्योरा', r_none:'इस अवधि में कोई रिकॉर्ड नहीं है।', r_created:'बनाया गया',
+    r_hoursWorked:'काम के घंटे'
   };
   T.el = {
     st_title:'Αποθήκευση και αντίγραφα',
@@ -432,7 +442,9 @@
     b_doneMerge:'Το αντίγραφο συγχωνεύτηκε. Δεν διαγράφηκε τίποτα.', b_doneReplace:'Το αντίγραφο επαναφέρθηκε. Τα τρέχοντα δεδομένα αντικαταστάθηκαν.', b_invalid:'Αυτό δεν είναι έγκυρο αρχείο αντιγράφου. Δεν άλλαξε τίποτα.', b_fail:'Η επαναφορά απέτυχε. Δεν άλλαξε τίποτα.', b_records:'εγγραφές',
     m_about:'Σχετικά', about_text:'Το My Salary Tracker κρατά τον μισθό, τα έξοδα και τις μεταφορές σας μόνο σε αυτή τη συσκευή. Τίποτα δεν στέλνεται σε διακομιστή.', m_recover:'Ανάκτηση δεδομένων (μόνο ανάγνωση)', ver:'Έκδοση', saved:'Αποθηκεύτηκε', upd:'Νέα έκδοση είναι έτοιμη.', upd_btn:'Επαναφόρτωση', fml:'€{basic} ανά ημέρα + €{ot} ανά ώρα υπερωρίας',
     given_note:'Τα χρήματα που δόθηκαν είναι δώρο ή βοήθεια. Δεν είναι δάνειο και δεν μετράνε ποτέ ως οφειλή προς εσάς.', rent_note:'Το ενοίκιο δεν υπολογίζεται στα σύνολα (ενεργοποιήστε το στις Ρυθμίσεις).', net_note:'Διαθέσιμα μετρητά = χρήματα που λήφθηκαν − έξοδα − στάλθηκαν σπίτι − χρήματα που δόθηκαν (EUR).', print_title:'Αναφορά My Salary Tracker',
-    unknown_status:'μη αναγνωρισμένη κατάσταση', rate_hint:'Εκτιμώμενα BDT', est_bdt:'Εκτιμώμενα BDT', bdt:'BDT', bonus_eur:'Μπόνους (€)', fee_lbl:'Προμήθεια', rate_lbl:'Ισοτιμία'
+    unknown_status:'μη αναγνωρισμένη κατάσταση', rate_hint:'Εκτιμώμενα BDT', est_bdt:'Εκτιμώμενα BDT', bdt:'BDT', bonus_eur:'Μπόνους (€)', fee_lbl:'Προμήθεια', rate_lbl:'Ισοτιμία',
+    saved_in:'Αποθηκεύτηκε στον μήνα {month}', dup_warn:'Υπάρχουν περισσότερες από μία εγγραφές εργασίας για: {dates}. Κάθε εγγραφή μετράει, οπότε ο μισθός που κερδήθηκε μπορεί να φαίνεται μεγαλύτερος. Διαγράψτε την επιπλέον εγγραφή.', clock_label:'Τρέχουσα ημερομηνία και ώρα', r_sec_salary:'Μισθός', r_sec_work:'Ημέρες εργασίας και υπερωρίες', r_sec_bus:'Επίδομα λεωφορείου (ξεχωριστά από τον μισθό)', r_sec_money:'Ροή χρημάτων', r_sec_monthly:'Ανάλυση ανά μήνα', r_sec_yearly:'Ανάλυση ανά έτος', r_none:'Δεν υπάρχουν εγγραφές για αυτή την περίοδο.', r_created:'Δημιουργήθηκε',
+    r_hoursWorked:'Ώρες εργασίας'
   };
   var api = { T: T, LANGS: ['en', 'bn', 'tr', 'bg', 'hi', 'el'], LOCALES: { en: 'en-GB', bn: 'bn-BD-u-nu-latn', tr: 'tr-TR', bg: 'bg-BG', hi: 'hi-IN-u-nu-latn', el: 'el-GR' } };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.MSTi18n = api;
