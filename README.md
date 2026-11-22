@@ -1,4 +1,4 @@
-# My Salary Tracker — version 9.5.9 (income calculation and tips fix)
+# My Salary Tracker — version 9.5.10 (income calculation and tips fix)
 
 A private salary, expense and money tracker that works offline on iPhone and Android.
 **Your records stay on your phone. Nothing is sent to any server.**
@@ -191,22 +191,22 @@ Known limitations in this build: weekly schedule program/OCR import, background 
 - The Monday program still stores the photo locally and requires manual entry of schedule details; automatic OCR is not bundled in this build.
 
 
-## 9.5.9 changes
+## 9.5.10 changes
 - Monthly bus allowance is included in total earned salary and outstanding; the bus paid/unpaid breakdown remains separately visible.
 - Added a Tips + button on the Home page beside the Tips amount.
 - Backup & Restore is hidden in normal screens and appears only after selecting it from the Menu.
 - Home layout otherwise unchanged.
 
-## 9.5.9 requested fixes
+## 9.5.10 requested fixes
 - Backup & Restore is hidden outside its menu-opened section.
 - OT quick action uses a dedicated overtime-only form (date + OT hours to add), removing the Basic Duty hours field.
 - Tips dialog opens without automatically triggering the date picker; calendar controls are compact.
 
 
-### Country and currency (v9.5.9)
+### Country and currency (v9.5.10)
 Country selection is independent from language. It changes the displayed currency and default remittance bonus; it does not convert existing numeric amounts. The remittance calculator remains EUR-based for its exchange-rate input.
 
-## 9.5.9 requested refinements
+## 9.5.10 requested refinements
 - Compact home date/time panel with more separation between the two values.
 - Smaller, accented month navigation controls.
 - Dialogs focus the title, not date inputs, to avoid native date-picker popups opening automatically.

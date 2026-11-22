@@ -233,3 +233,30 @@ header h1{font-size:19px}.card{padding:13px;border-radius:18px;margin:9px 0}.car
 
 /* v9.5.0 earnings + private duty program */
 .earnings-today,.extra-income,.schedule-peek{padding:9px 11px;margin:6px 0;border-radius:13px}.earnings-today .label,.extra-income .label,.schedule-peek .label{font-size:10px;color:var(--muted);font-weight:600}.earnings-today>strong{display:block;font-size:21px;line-height:1.2;margin:3px 0 5px;color:var(--accent)}.earning-lines{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-size:10px;color:var(--muted)}.earning-lines b{grid-column:1/-1;color:var(--text);font-size:11px}.extra-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:5px}.extra-grid>div{display:flex;flex-direction:column;gap:2px}.extra-grid small{font-size:10px;color:var(--muted)}.extra-grid b{font-size:15px;color:var(--accent)}.schedule-peek{font-size:10px;color:var(--muted)}.schedule-peek #scheduleToday{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:3px;font-size:10px}.program-file{display:block}.program-file input{margin-top:6px}.program-history-row{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 0;font-size:12px}.program-history-row small{display:block;color:var(--muted);font-size:10px}.program-history-row button{padding:5px 9px;font-size:11px}.earnings-today,.extra-income,.schedule-peek{box-shadow:none}
+
+/* Home Tips quick-add */
+.tips-home{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.tips-home small{flex-basis:100%}.tips-home b{flex:1}.tips-home button{min-width:30px;padding:2px 8px}
+
+/* v9.5.7: backup section must respect hidden even when its screen CSS is active */
+#backupSec[hidden]{display:none!important}
+/* compact calendar */
+.work-calendar{padding:3px!important;gap:2px!important;margin:5px 0!important}
+.cal-day{min-height:32px!important;padding:2px 1px!important;border-radius:6px!important}
+.cal-day small{font-size:7px!important}
+.calendar-toggle{min-height:30px!important;padding:5px 8px!important;margin:5px 0 3px!important}
+/* Tips dialog: date picker should not receive initial focus */
+#tipsDialog #tipDate{padding:5px 8px;min-height:34px;font-size:13px}
+#tipsDialog #tipAmount{padding:6px 9px;min-height:36px}
+
+/* v9.5.8 compact brand and menu close control */
+.brand{display:flex;align-items:center;gap:7px}.brand-logo{width:24px;height:24px;object-fit:contain;border-radius:5px}.brand h1{margin:2px 0}.menu-dlg{position:relative;padding-top:38px}.menu-close{position:absolute;right:12px;top:8px;width:34px;height:34px;min-height:34px;padding:0;border-radius:50%;font-size:24px;line-height:1;background:var(--surface2);color:var(--text);border:1px solid var(--line)}.account-salary{margin:0 0 12px;padding:10px;border:1px solid var(--line);border-radius:12px}
+/* v9.5.9 home spacing and compact month navigation */
+#clock{display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 8px;margin:5px 0;border-radius:12px}
+#clockDate,#clockTime{padding:3px 7px;border-radius:8px;background:var(--surface2);line-height:1.25}
+.month{display:flex;align-items:center;justify-content:center;gap:7px;margin:7px 0 6px}
+.month button{width:30px;min-width:30px;min-height:30px;height:30px;padding:0;border-radius:9px;background:var(--accent);color:#fff;border:0;font-size:17px;font-weight:700;line-height:1}
+.month strong{padding:4px 9px;border-radius:9px;background:var(--surface2);border:1px solid var(--line);font-size:13px;min-width:110px;text-align:center}
+/* Never let opening a dialog focus a date input and trigger its native picker. */
+dialog h3[tabindex="-1"]{outline:none}
+/* v9.5.10: smaller header logo */
+.brand{gap:5px}.brand-logo{width:17px;height:17px;border-radius:3px}.brand h1{font-size:17px;letter-spacing:-.25px}
