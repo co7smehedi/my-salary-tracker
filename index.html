@@ -111,7 +111,7 @@
 <button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
 
 <dialog id="dutyProgramDialog"><div class="dlg"><h3>Monday Duty Program</h3><p class="muted">Upload a paper schedule photo. The photo and confirmed schedule are saved on this phone only. Review and enter the details manually; no cloud OCR is used.</p>
-<label class="program-file"><span>Paper schedule photo</span><input id="programPhoto" type="file" accept="image/*" capture="environment"></label>
+<label class="program-file"><span>Paper schedule photo (Camera or Photo Library)</span><input id="programPhoto" type="file" accept="image/*"></label>
 <label><span>Duty date</span><input id="programDate" type="date"></label>
 <label class="check"><input id="programRest" type="checkbox"><span>Rest Day</span></label>
 <div id="programTimes"><label><span>Start time</span><input id="programStart" type="time"></label><label><span>End time</span><input id="programEnd" type="time"></label><label><span>Break (minutes)</span><input id="programBreak" type="number" min="0" max="600" step="5" value="60"></label><label><span>Overtime (hours, if scheduled)</span><input id="programOt" type="number" min="0" max="24" step="0.25" value="0"></label></div>

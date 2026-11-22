@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.5.0';
+  var VERSION = '9.5.2';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms'];
   var LEGACY = 'workEntries';
@@ -108,7 +108,7 @@
     var s = Object.assign({}, C.DEFAULTS), r = raw && typeof raw === 'object' ? raw : {};
     ['basic', 'standard', 'otRate', 'bus', 'bonus', 'salaryMonthly', 'weeklyDays'].forEach(function (k) { if (r[k] !== undefined && r[k] !== null && r[k] !== '' && Number.isFinite(Number(r[k])) && Number(r[k]) >= 0) s[k] = Number(r[k]); });
     ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { if (typeof r[k] === 'boolean') s[k] = r[k]; }); s.rentEnabled=false;
-    s.salaryMonthly = s.salaryMonthly || 650; s.weeklyDays = Math.max(1, Math.min(7, Math.round(s.weeklyDays || 6))); s.people = Array.isArray(r.people) ? r.people.filter(function(n){return typeof n==='string'&&n.trim();}).map(function(n){return n.trim();}) : ['Sohel','Mim','Ismail','Riyad'];
+    s.salaryMonthly = s.salaryMonthly || 650; s.weeklyDays = Math.max(1, Math.min(7, Math.round(s.weeklyDays || 6))); s.people = Array.isArray(r.people) ? r.people.filter(function(n){return typeof n==='string'&&n.trim();}).map(function(n){return n.trim();}) : [];
     if (I.LANGS.indexOf(r.language) >= 0) s.language = r.language;
     if (['auto', 'light', 'dark'].indexOf(r.theme) >= 0) s.theme = r.theme;
     return s;
@@ -128,7 +128,7 @@
       r.onupgradeneeded = function () { upgrade && upgrade(r.result); };
       r.onsuccess = function () { res(r.result); };
       r.onerror = function () { rej(r.error); };
-      r.onblocked = function () { rej(new Error('blocked')); };
+      r.onblocked = function () { /* A blocked upgrade may still succeed after another tab closes; wait for success/error. */ };
     });
   }
   function ensureStores(d) { STORES.concat([LEGACY]).forEach(function (s) { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); }); }
@@ -144,12 +144,12 @@
   function reqP(req) { return new Promise(function (res, rej) { req.onsuccess = function () { res(req.result); }; req.onerror = function () { rej(req.error); }; }); }
   function getAll(s) { return reqP(state.db.transaction(s, 'readonly').objectStore(s).getAll()).then(function (r) { return r || []; }); }
   function txDone(tx) { return new Promise(function (res, rej) { tx.oncomplete = function () { res(); }; tx.onabort = function () { rej(tx.error || new Error('aborted')); }; tx.onerror = function () { }; }); }
-  function put(s, x) { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).put(x); return txDone(tx); }
+  function put(s, x) { if (!state.db) return Promise.reject(new Error('Local database is not ready. Close other app tabs and reload.')); var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).put(x); return txDone(tx); }
   // Work records: the one-record-per-date check and the write happen inside ONE transaction, against the data stored on disk
   // (not the on-screen copy), so a double tap or a second open window can never create a second record for the same day.
   function putWork(rec) {
     return new Promise(function (resolve, reject) {
-      var tx; try { tx = state.db.transaction('work', 'readwrite'); } catch (e) { return reject(e); }
+      var tx; try { if (!state.db) throw new Error('Local database is not ready. Close other app tabs and reload.'); tx = state.db.transaction('work', 'readwrite'); } catch (e) { return reject(e); }
       var os = tx.objectStore('work'), dup = false, rq = os.getAll();
       tx.oncomplete = function () { resolve(); };
       tx.onabort = function () { var err = dup ? new Error('duplicate date') : (tx.error || new Error('aborted')); err.dup = dup; reject(err); };
@@ -229,18 +229,7 @@
   function addPersonName(name){name=String(name||'').trim();if(!name)return;state.settings.people=state.settings.people||[];if(!state.settings.people.some(function(n){return n.toLocaleLowerCase()===name.toLocaleLowerCase();})){state.settings.people.push(name);persistSettings();}}
   function renamePerson(oldName){if(!oldName)return;var newName=prompt('নতুন নাম লিখুন',oldName);if(!newName||!newName.trim()||newName.trim()===oldName)return;var target=newName.trim();state.settings.people=(state.settings.people||[]).map(function(n){return n.toLocaleLowerCase()===oldName.toLocaleLowerCase()?target:n;});var list=state.data.gifts.filter(function(g){return String(g.person||'').toLocaleLowerCase()===oldName.toLocaleLowerCase();});Promise.all(list.map(function(g){return put('gifts',Object.assign({},g,{person:target}));})).then(function(){persistSettings();state.personSelected=target;closeDlg('peopleDlg');refresh();toast('নাম আপডেট হয়েছে।');});}
   function readDataUrl(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(){resolve(r.result);};r.onerror=function(){reject(r.error||new Error('file read failed'));};r.readAsDataURL(file);});}
-  async function importHistoricalOnce(){var key='mst-history-import-v1';if(localStorage.getItem(key))return;var entries=[
-    {store:'remittances',id:'historic-remit-2026-08',date:'2026-08-01',datePrecision:'month',recipient:'Family',amount:870,rate:127049/870,fee:0,bonus:0,actualBdt:127049,note:'Historical handoff; day unknown.'},
-    {store:'remittances',id:'historic-remit-2026-09',date:'2026-09-07',recipient:'Family',amount:870,rate:127049/870,fee:0,bonus:0,actualBdt:127049,note:'Historical handoff; actual BDT recorded.'},
-    {store:'remittances',id:'historic-remit-2026-10',date:'2026-10-01',datePrecision:'month',recipient:'Family',amount:600,rate:84870/600,fee:0,bonus:0,actualBdt:84870,note:'Historical handoff; day unknown.'},
-    {store:'remittances',id:'historic-remit-2026-11',date:'2026-11-01',datePrecision:'month',recipient:'Family',amount:820,rate:116128/820,fee:0,bonus:0,actualBdt:116128,note:'Historical handoff; day unknown.'},
-    {store:'gifts',id:'historic-gift-riyad-2026-08-20',date:'2026-08-20',person:'Riyad',currency:'EUR',amount:70,bdtActual:10000,note:'Historical handoff.'},
-    {store:'gifts',id:'historic-gift-sohel-2026-09-15',date:'2026-09-15',person:'Sohel',currency:'BDT',amount:7312,note:'Via Sohel/bKash; final recipient not confirmed.'},
-    {store:'gifts',id:'historic-gift-mim-2026-09-25',date:'2026-09-25',person:'Mim',currency:'BDT',amount:2000,note:'Historical handoff; EUR equivalent unknown.'},
-    {store:'gifts',id:'historic-gift-sohel-2026-09-29',date:'2026-09-29',person:'Sohel',currency:'BDT',amount:4274,note:'Via Sohel/bKash; final recipient not confirmed.'},
-    {store:'gifts',id:'historic-gift-ismail-2026-10-07',date:'2026-10-07',person:'Ismail',currency:'BDT',amount:1000,note:'Historical handoff.'},
-    {store:'gifts',id:'historic-gift-sohel-2026-10-07',date:'2026-10-07',person:'Sohel',currency:'BDT',amount:3783,note:'Historical handoff.'}
-  ];for(var i=0;i<entries.length;i++){var e=entries[i],list=state.data[e.store]||[];if(!list.some(function(x){if(x.id===e.id)return true;if(e.store==='gifts')return x.date===e.date&&String(x.person||'').toLowerCase()===String(e.person||'').toLowerCase()&&String(x.currency||'EUR').toUpperCase()===String(e.currency||'EUR').toUpperCase()&&Number(x.amount)===Number(e.amount)&&Number(x.bdtActual||0)===Number(e.bdtActual||0);return x.date===e.date&&String(x.recipient||'').toLowerCase()===String(e.recipient||'').toLowerCase()&&Number(x.amount)===Number(e.amount)&&Number(x.actualBdt||0)===Number(e.actualBdt||0);})){await put(e.store,e);}}state.settings.people=['Sohel','Mim','Ismail','Riyad'].concat(state.settings.people||[]).filter(function(n,i,a){return a.findIndex(function(x){return x.toLocaleLowerCase()===n.toLocaleLowerCase();})===i;});persistSettings();localStorage.setItem(key,'1');await loadAll();}
+  async function importHistoricalOnce(){ /* Fresh installs start empty. Existing device records are preserved. */ return; }
   function renderWorkCalendar() {
     var m = viewMonth(), y = +m.slice(0,4), mo = +m.slice(5,7)-1, first = new Date(y,mo,1), days = new Date(y,mo+1,0).getDate();
     var start = (first.getDay()+6)%7; // Monday first
@@ -274,7 +263,7 @@
     var s = state.settings, m = viewMonth(), c = C.calcMonth(state.data, s, m), d = state.data;
     document.documentElement.lang = lang(); applyTheme();
     document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = tr(el.getAttribute('data-t')); });
-    var extras={bn:{quickDutyLabel:'আজকের Basic Duty ১ ক্লিকে যোগ',peopleTitle:'ব্যক্তিভিত্তিক হিসাব',peopleNote:'প্রত্যেকের মোট টাকা ও লেনদেন আলাদা',transactions:'লেনদেন'},en:{quickDutyLabel:'One-tap: record today’s basic duty',peopleTitle:'People & profiles',peopleNote:'Individual totals and transaction history',transactions:'transactions'},tr:{quickDutyLabel:'Bugünün normal mesaisini tek dokunuşla kaydet',peopleTitle:'Kişiler ve profiller',peopleNote:'Kişiye göre toplamlar ve geçmiş',transactions:'işlem'},bg:{quickDutyLabel:'Запиши днешния работен ден с едно докосване',peopleTitle:'Хора и профили',peopleNote:'Суми и история по човек',transactions:'транзакции'},hi:{quickDutyLabel:'आज की सामान्य ड्यूटी एक टैप में दर्ज करें',peopleTitle:'लोग और प्रोफ़ाइल',peopleNote:'व्यक्ति के अनुसार कुल और इतिहास',transactions:'लेन-देन'},el:{quickDutyLabel:'Καταγραφή σημερινής βάρδιας με ένα πάτημα',peopleTitle:'Άτομα και προφίλ',peopleNote:'Σύνολα και ιστορικό ανά άτομο',transactions:'συναλλαγές'}};var ex=extras[lang()]||extras.en;document.querySelector('[data-t=quickDutyLabel]').textContent=ex.quickDutyLabel;document.getElementById('homeQuickDuty').textContent='✅ '+ex.quickDutyLabel;document.querySelectorAll('[data-t=peopleTitle]').forEach(function(el){el.textContent=ex.peopleTitle;});document.querySelector('[data-t=peopleNote]').textContent=ex.peopleNote;
+    var extras={bn:{quickDutyLabel:'আজকের Basic Duty ১ ক্লিকে যোগ',peopleTitle:'ব্যক্তিভিত্তিক হিসাব',peopleNote:'প্রত্যেকের মোট টাকা ও লেনদেন আলাদা',transactions:'লেনদেন'},en:{quickDutyLabel:'One-tap: record today’s basic duty',peopleTitle:'People & profiles',peopleNote:'Individual totals and transaction history',transactions:'transactions'},tr:{quickDutyLabel:'Bugünün normal mesaisini tek dokunuşla kaydet',peopleTitle:'Kişiler ve profiller',peopleNote:'Kişiye göre toplamlar ve geçmiş',transactions:'işlem'},bg:{quickDutyLabel:'Запиши днешния работен ден с едно докосване',peopleTitle:'Хора и профили',peopleNote:'Суми и история по човек',transactions:'транзакции'},hi:{quickDutyLabel:'आज की सामान्य ड्यूटी एक टैप में दर्ज करें',peopleTitle:'लोग और प्रोफ़ाइल',peopleNote:'व्यक्ति के अनुसार कुल और इतिहास',transactions:'लेन-देन'},el:{quickDutyLabel:'Καταγραφή σημερινής βάρδιας με ένα πάτημα',peopleTitle:'Άτομα και προφίλ',peopleNote:'Σύνολα και ιστορικό ανά άτομο',transactions:'συναλλαγές'}};var ex=extras[lang()]||extras.en;var qa={en:['Add Work','Add OT','Salary','Expense','Send Home','Money Given'],bn:['কাজ যোগ','OT যোগ','বেতন','খরচ','পরিবারে পাঠানো','অন্যদের দেওয়া'],tr:['İş ekle','Mesai ekle','Maaş','Gider','Eve para gönder','Para verildi'],bg:['Добави работа','Добави извънреден труд','Заплата','Разход','Изпрати у дома','Дадени пари'],hi:['काम जोड़ें','ओटी जोड़ें','वेतन','खर्च','घर पैसे भेजें','दिए गए पैसे'],el:['Προσθήκη εργασίας','Προσθήκη υπερωρίας','Μισθός','Έξοδο','Αποστολή χρημάτων','Χρήματα που δόθηκαν']}[lang()]||['Add Work','Add OT','Salary','Expense','Send Home','Money Given'];['qa_work','qa_ot','qa_salary','qa_expense','qa_remit','qa_gift'].forEach(function(k,i){document.querySelectorAll('[data-t='+k+']').forEach(function(el){el.textContent=qa[i];});});document.querySelector('[data-t=quickDutyLabel]').textContent=ex.quickDutyLabel;document.getElementById('homeQuickDuty').textContent='✅ '+ex.quickDutyLabel;document.querySelectorAll('[data-t=peopleTitle]').forEach(function(el){el.textContent=ex.peopleTitle;});document.querySelector('[data-t=peopleNote]').textContent=ex.peopleNote;
     $('month').textContent = fmtMonth(m);
     $('clock').setAttribute('aria-label', tr('clock_label')); clockShown = { d: '', t: '' }; tickClock();
     $('earned').textContent = money(c.wages); $('days').textContent = c.workedDays; $('basicDays').textContent = c.workedDays; $('ot').textContent = numFmt(c.otHours) + ' h';
@@ -437,7 +426,7 @@
     var box = $('fields'); box.innerHTML = '';
     FIELDS[kind].forEach(function (f) {
       var key = f[0], type = f[2], wrap = document.createElement('label'), span = document.createElement('span'), input;
-      span.textContent = tr(f[1]); wrap.appendChild(span);
+      span.textContent = tr(f[1]); wrap.appendChild(span); if(kind==='work'&&key==='hours') wrap.setAttribute('data-work-hours-field','');
       var val = old[key];
       if (type === 'status' || type === 'category' || type === 'currency' || (kind==='gifts'&&key==='person')) {
         input = document.createElement('select');
@@ -456,7 +445,7 @@
       input.name = key; input.value = val; if (f[3]) input.required = true;
       wrap.appendChild(input); box.appendChild(wrap);
     });
-    if(['payments','expenses','remittances','gifts'].indexOf(kind)>=0){var rw=document.createElement('div');rw.className='receipt-field';var rs=document.createElement('span');rs.textContent='Optional receipt (photo/PDF, max 5 MB)';rw.appendChild(rs);var fi=document.createElement('input');fi.type='file';fi.name='receiptFile';fi.accept='image/*,application/pdf';rw.appendChild(fi);if(old.receipt){var details=document.createElement('details');details.innerHTML='<summary>Current receipt</summary>'+(String(old.receipt.type||'').indexOf('image/')===0?'<img class="receipt-preview" src="'+safe(old.receipt.data)+'" alt="Current receipt">':'<a href="'+safe(old.receipt.data)+'" target="_blank" rel="noopener">Open current file</a>');rw.appendChild(details);var rm=document.createElement('label');rm.className='check';var chk=document.createElement('input');chk.type='checkbox';chk.name='removeReceipt';var tx=document.createElement('span');tx.textContent='Remove current receipt';rm.appendChild(chk);rm.appendChild(tx);rw.appendChild(rm);}box.appendChild(rw);} $('deleteBtn').hidden = old.id === undefined; openDlg('editDialog');
+    if(['payments','expenses','remittances','gifts'].indexOf(kind)>=0){var rw=document.createElement('div');rw.className='receipt-field';var rs=document.createElement('span');rs.textContent='Optional receipt (photo/PDF, max 5 MB)';rw.appendChild(rs);var fi=document.createElement('input');fi.type='file';fi.name='receiptFile';fi.accept='image/*,application/pdf';rw.appendChild(fi);if(old.receipt){var details=document.createElement('details');details.innerHTML='<summary>Current receipt</summary>'+(String(old.receipt.type||'').indexOf('image/')===0?'<img class="receipt-preview" src="'+safe(old.receipt.data)+'" alt="Current receipt">':'<a href="'+safe(old.receipt.data)+'" target="_blank" rel="noopener">Open current file</a>');rw.appendChild(details);var rm=document.createElement('label');rm.className='check';var chk=document.createElement('input');chk.type='checkbox';chk.name='removeReceipt';var tx=document.createElement('span');tx.textContent='Remove current receipt';rm.appendChild(chk);rm.appendChild(tx);rw.appendChild(rm);}box.appendChild(rw);} if(kind==='work'){var statusEl=box.querySelector('[name=status]'),hoursWrap=box.querySelector('[data-work-hours-field]');function toggleHours(){if(hoursWrap)hoursWrap.hidden=!statusEl||statusEl.value!=='worked';}if(statusEl)statusEl.addEventListener('change',toggleHours);toggleHours();} $('deleteBtn').hidden = old.id === undefined; openDlg('editDialog');
   }
   function formVal(name) { var el = $('fields').querySelector('[name="' + name + '"]'); return el ? el.value.trim() : ''; }
   function numOrNull(v) { if (v === '') return null; var n = Number(v); return Number.isFinite(n) ? n : NaN; }
@@ -662,7 +651,7 @@
         st.persisted = sg.persisted ? !!(await sg.persisted()) : false;
         if (!st.persisted && sg.persist) st.persisted = !!(await sg.persist());
       }
-      if (sg && sg.estimate) { var e = await sg.estimate(); st.usage = e.usage; st.quota = e.quota; }
+      if (sg && sg.estimate) { var e = await sg.estimate(); st.usage = e && e.usage != null ? e.usage : null; st.quota = e && e.quota != null ? e.quota : null; }
     } catch (e) { }
     state.storage = st;
   }
