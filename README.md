@@ -145,3 +145,17 @@ Known limitations in this build: weekly schedule program/OCR import, background 
 - Work calendar is collapsed by default and opens only on explicit tap.
 - Received and outstanding dashboard tiles replaced by a compact, non-interactive monthly income display; expense shortcut remains available.
 - Existing financial records, names, formulas, and calculation modules are unchanged.
+
+
+## v9.4.2 requested layout and calendar behavior
+- Moved the Today's duty card directly above Quick Actions on the Home screen.
+- Ensured every form-opening action (including Work and OT) closes the calendar first; calendar opens only from its explicit Show calendar control.
+- No data schema, records, salary formulas, or backup behavior changed.
+
+
+## v9.5.0 update
+- Added compact monthly basic income, today's earnings breakdown, and monthly OT/tips totals.
+- Tips are stored on each existing work record and included in monthly calculations. Existing records default to zero tips.
+- Added Monday Duty Program in the menu. Paper photos and confirmed schedule rows are stored locally in IndexedDB and included in backups. Schedule dates are unique; replacing a date requires confirmation.
+- Schedule details are entered manually after photo upload. No cloud OCR or external upload is performed; OCR is not included in this build.
+- Added a small home schedule preview for today only; rest days display as Rest Day. Planned schedules do not mark attendance or add salary.
