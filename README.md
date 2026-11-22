@@ -1,4 +1,4 @@
-# My Salary Tracker — version 9.5.11 (income calculation and tips fix)
+# My Salary Tracker — version 9.5.12 (income calculation and tips fix)
 
 ## Changes in 9.5.11
 - Home clock: compact time on the left and date on the right.
@@ -217,3 +217,9 @@ Country selection is independent from language. It changes the displayed currenc
 - Smaller, accented month navigation controls.
 - Dialogs focus the title, not date inputs, to avoid native date-picker popups opening automatically.
 - New remittance entries use editable approximate country exchange-rate defaults (Bangladesh: 140 BDT per EUR).
+
+
+## Changes in 9.5.12
+- Added subtle page-entry and button feedback animations.
+- Motion respects the device's reduced-motion accessibility preference.
+- Kept animation code lightweight, local, and offline-friendly (no remote jQuery dependency).

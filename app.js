@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.5.11';
+  var VERSION = '9.5.12';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms', 'tips'];
   var LEGACY = 'workEntries';
@@ -763,6 +763,12 @@
   }
 
   function closeWorkCalendar() { var panel=$('calendarPanel'),btn=$('calendarToggle'); if(panel&&btn){panel.hidden=true;btn.setAttribute('aria-expanded','false');btn.textContent=tr('showCalendar');} }
+  // Lightweight motion: CSS-driven, offline, and disabled for reduced-motion users.
+  function animateView(view) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var targets = view === 'home' ? Array.prototype.slice.call(document.querySelectorAll('#top>header,#top>#clock,#top>.month,#top>.hero,#top>.earnings-today,#top>.extra-income,#top>.tiles,#top>#quickActions,#top>#balanceSummary,#top>#recentCard')) : [document.querySelector('[data-screen=\"' + view + '\"]')];
+    targets.forEach(function(el, i) { if (!el || el.hidden) return; el.classList.remove('mst-enter'); void el.offsetWidth; el.style.setProperty('--mst-delay', Math.min(i * 35, 180) + 'ms'); el.classList.add('mst-enter'); });
+  }
   var backupRevealFromMenu = false;
   function switchView(view) {
     closeWorkCalendar();
@@ -771,6 +777,7 @@
     document.body.setAttribute('data-view', view);
     if(['home','work','money','reports','settings'].indexOf(view)<0)view='home';
     document.body.setAttribute('data-view', view);
+    animateView(view);
     document.querySelectorAll('[data-nav]').forEach(function(b){var target=b.getAttribute('data-nav');var active=(view==='home'&&target==='top')||(view==='work'&&target==='work')||(view==='money'&&target==='payments')||(view==='reports'&&target==='reports');b.classList.toggle('active',active);});
     window.scrollTo({top:0,behavior:'smooth'});
   }
