@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.2';
+  var VERSION = '9.2.1';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts'];
   var LEGACY = 'workEntries';
@@ -189,6 +189,39 @@
     return null;
   }
   function byDateDesc(a, b) { return String(b.date || '').localeCompare(String(a.date || '')); }
+  function designWords() {
+    var maps = {
+      en: {quick:'Quick Actions',work:'Add Work',ot:'Add OT',salary:'Salary',expense:'Expense',remit:'Send Home',gift:'Give Money',balance:'Salary & Expenses',balanceSub:'Income, expenses and savings comparison',recent:'Recent Transactions',add:'Add',home:'Home',money:'Money',saved:'Estimated savings'},
+      bn: {quick:'Quick Actions',work:'কাজ যোগ',ot:'OT যোগ',salary:'বেতন',expense:'খরচ',remit:'পরিবারে পাঠানো',gift:'অন্যদের দেওয়া',balance:'বেতন ও খরচ',balanceSub:'আয়, খরচ ও সঞ্চয়ের তুলনা',recent:'সাম্প্রতিক লেনদেন',add:'যোগ',home:'হোম',money:'টাকা',saved:'আনুমানিক সঞ্চয়'},
+      tr: {quick:'Hızlı İşlemler',work:'İş Ekle',ot:'Mesai Ekle',salary:'Maaş',expense:'Gider',remit:'Aileye Gönder',gift:'Para Ver',balance:'Maaş ve Giderler',balanceSub:'Gelir, gider ve tasarruf karşılaştırması',recent:'Son İşlemler',add:'Ekle',home:'Ana Sayfa',money:'Para',saved:'Tahmini birikim'},
+      bg: {quick:'Бързи действия',work:'Добави работа',ot:'Добави извънредно',salary:'Заплата',expense:'Разход',remit:'Изпрати на семейството',gift:'Дари пари',balance:'Заплата и разходи',balanceSub:'Сравнение на доходи, разходи и спестявания',recent:'Последни транзакции',add:'Добави',home:'Начало',money:'Пари',saved:'Очаквани спестявания'},
+      hi: {quick:'त्वरित कार्रवाइयाँ',work:'काम जोड़ें',ot:'ओटी जोड़ें',salary:'वेतन',expense:'खर्च',remit:'परिवार को भेजें',gift:'पैसे दें',balance:'वेतन और खर्च',balanceSub:'आय, खर्च और बचत की तुलना',recent:'हाल के लेनदेन',add:'जोड़ें',home:'होम',money:'पैसा',saved:'अनुमानित बचत'},
+      el: {quick:'Γρήγορες ενέργειες',work:'Προσθήκη εργασίας',ot:'Προσθήκη υπερωρίας',salary:'Μισθός',expense:'Έξοδο',remit:'Αποστολή στην οικογένεια',gift:'Δωρεά',balance:'Μισθός και έξοδα',balanceSub:'Σύγκριση εσόδων, εξόδων και αποταμίευσης',recent:'Πρόσφατες συναλλαγές',add:'Προσθήκη',home:'Αρχική',money:'Χρήματα',saved:'Εκτιμώμενη αποταμίευση'}
+    };
+    return maps[lang()] || maps.en;
+  }
+  function renderDesignSummary(c) {
+    var w = designWords();
+    $('quickActions').querySelector('h3').textContent = w.quick;
+    document.querySelector('[data-nav=top] b').textContent=w.home; document.querySelector('[data-nav=quickActions] b').textContent=w.add; document.querySelector('[data-nav=payments] b').textContent=w.money; document.querySelector('[data-nav=work] b').textContent=(lang()==='bn'?'কাজ':lang()==='tr'?'İş':lang()==='bg'?'Работа':lang()==='hi'?'काम':lang()==='el'?'Εργασία':'Work'); document.querySelector('[data-nav=reports] b').textContent=tr('reports');
+    var labels = {work:w.work,ot:w.ot,payments:w.salary,expenses:w.expense,remittances:w.remit,gifts:w.gift};
+    document.querySelectorAll('[data-action]').forEach(function(b){b.querySelector('b').textContent=labels[b.getAttribute('data-action')]||'';});
+    $('balanceSummary').querySelector('h3').textContent=w.balance;
+    $('balanceSummary').querySelector('.note').textContent=w.balanceSub;
+    $('recentTitleText') && ($('recentTitleText').textContent=w.recent);
+    $('balanceMonth').textContent=fmtMonth(viewMonth(),true);
+    var income=Math.max(0,C.num(c.salaryReceived)), out=Math.max(0,C.num(c.expenses)+C.num(c.remitEur)+C.num(c.giftEur));
+    $('balanceBar').style.width=(income?Math.min(100,out/income*100):0)+'%';
+    $('savings').textContent=w.saved+': '+money(c.balance);
+    var list=[];
+    state.data.work.forEach(function(x){var p=C.dayParts(x,state.settings);if(p.total>0)list.push({date:x.date,icon:'🛠️',name:tr('workRecords'),amount:p.total,kind:'pos'});});
+    state.data.payments.forEach(function(x){list.push({date:x.date,icon:'💰',name:tr('payments'),amount:C.num(x.amount),kind:'pos'});});
+    state.data.expenses.forEach(function(x){list.push({date:x.date,icon:'🛒',name:catLabel(x.category),amount:-C.num(x.amount),kind:'neg'});});
+    state.data.remittances.forEach(function(x){var q=C.remitParts(x);list.push({date:x.date,icon:'🇧🇩',name:tr('remit'),amount:-C.num(q.amount),kind:'neg'});});
+    state.data.gifts.forEach(function(x){list.push({date:x.date,icon:'🎁',name:tr('given'),amount:-C.num(x.amount),kind:'neg'});});
+    list.sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));});
+    $('recentList').innerHTML=list.slice(0,5).map(function(x){return '<div class="recent-item"><span class="recent-icon">'+x.icon+'</span><span class="recent-name">'+safe(x.name)+'</span><span class="recent-amount '+(x.kind==='pos'?'positive':'negative')+'">'+(x.amount>=0?'+':'−')+safe(money(Math.abs(x.amount)))+'</span></div>';}).join('')||'<small class="empty">'+safe(tr('r_none'))+'</small>';
+  }
   function render() {
     var s = state.settings, m = viewMonth(), c = C.calcMonth(state.data, s, m), d = state.data;
     document.documentElement.lang = lang(); applyTheme();
@@ -235,7 +268,7 @@
     $('language').value = lang(); $('theme').value = s.theme;
     $('verLine').textContent = 'My Salary Tracker • ' + tr('ver') + ' ' + VERSION;
     $('aboutText').textContent = tr('about_text'); $('aboutVer').textContent = tr('ver') + ' ' + VERSION;
-    renderBackupUi(); renderReport(); refreshMsgs();
+    renderBackupUi(); renderReport(); renderDesignSummary(c); refreshMsgs();
   }
 
   /* ---------- reports ---------- */
@@ -615,6 +648,8 @@
     $('menuBtn').onclick = function () { openDlg('menu'); };
     document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); if (id === 'top') window.scrollTo({ top: 0, behavior: 'smooth' }); else { var el = $(id); el && el.scrollIntoView({ behavior: 'smooth' }); } }; });
     $('aboutBtn').onclick = function () { closeDlg('menu'); openDlg('aboutDlg'); };
+    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');if(k==='ot')openForm('work',{date:today(),hours:state.settings.standard+1});else openForm(k);};});
+    document.querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){var target=b.getAttribute('data-nav');if(target==='quickActions'){$('quickActions').scrollIntoView({behavior:'smooth'});return;}if(target==='top'){window.scrollTo({top:0,behavior:'smooth'});return;}var el=$(target);if(el)el.scrollIntoView({behavior:'smooth'});};});
     document.addEventListener('click', function (e) {
       var cl = e.target.closest('.closeDlg'); if (cl) { var dd = cl.closest('dialog'); if (dd) { if (dd.close) dd.close(); else dd.removeAttribute('open'); } return; }
       var d = e.target.closest('[data-delete]'); if (d) { var dk = d.getAttribute('data-delete'); deleteRecord(dk, findRec(dk, d.getAttribute('data-id'), d.getAttribute('data-idt'))); return; }
