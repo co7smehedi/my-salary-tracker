@@ -16,7 +16,7 @@
 <title>My Salary Tracker</title></head>
 <body data-view="home">
 <main class="app" id="top">
-<header><div><small data-t="appTag">PRIVATE • OFFLINE FIRST</small><h1>My Salary Tracker</h1></div><button id="menuBtn" class="iconbtn" aria-label="Menu" aria-haspopup="dialog">▦</button></header>
+<header><div class="brand"><img src="./icon-192.png" alt="" class="brand-logo"><div><small data-t="appTag">PRIVATE • OFFLINE FIRST</small><h1>My Salary Tracker</h1></div></div><button id="menuBtn" class="iconbtn" aria-label="Menu" aria-haspopup="dialog">▦</button></header>
 <div id="clock" class="clock" role="timer"><span id="clockDate"></span><b id="clockTime"></b></div>
 <div id="backupBanner" class="banner" role="status" hidden><p id="bannerText"></p><div class="actions"><button id="bannerExport" type="button" class="primary" data-t="b_banner_btn">Export backup now</button><button id="bannerLater" type="button" class="secondary" data-t="b_banner_later">Remind me tomorrow</button></div></div>
 <div id="dbBanner" class="banner" role="status" hidden><p id="dbBannerText"></p><button id="dbRetry" type="button" class="secondary">Retry database</button></div>
@@ -25,7 +25,7 @@
 <section class="card hero" aria-labelledby="earnedLbl"><div class="label" id="earnedLbl">This Month's Basic Income</div><h2 id="earned">€0.00</h2>
 <div class="stats"><div><small data-t="worked">Worked days</small><b id="days">0</b></div><div><small>Basic duty</small><b id="basicDays">0</b></div><div><small>Overtime</small><b id="ot">0 h</b></div></div><p class="note" id="formula"></p></section>
 <section class="card earnings-today"><div class="label">Today's Earnings</div><strong id="todayEarnings">€0.00</strong><div class="earning-lines" id="todayBreakdown"></div></section>
-<section class="card extra-income"><div class="label">This Month's Extra Income</div><div class="extra-grid"><div><small>Overtime</small><b id="monthOtIncome">€0.00</b></div><div><small>Tips</small><b id="monthTipsIncome">€0.00</b></div></div></section>
+<section class="card extra-income"><div class="label">This Month's Extra Income</div><div class="extra-grid"><div><small>Overtime</small><b id="monthOtIncome">€0.00</b></div><div class="tips-home"><small>Tips</small><b id="monthTipsIncome">€0.00</b><button id="addTipsHome" type="button" class="small" aria-label="Add Tips">＋</button></div></div></section>
 <section class="card schedule-peek" id="schedulePeek" hidden><div class="label">Today's scheduled duty</div><div id="scheduleToday"></div></section>
 
 <div class="tiles">
@@ -53,7 +53,7 @@
 <section class="card balance-card" id="balanceSummary"><div class="row"><h3 data-t="balanceTitle">Salary &amp; Expenses</h3><span id="balanceMonth" class="accent"></span><button id="balanceDetails" type="button" class="small">Details</button></div><div class="balance-bar"><i id="balanceBar"></i></div><p id="balanceBreakdown" class="note" data-t="balanceSub">Income, expenses and savings comparison</p><strong id="savings" class="savings"></strong></section>
 <section class="card recent-card" id="recentCard"><div class="row"><h3 data-t="recentTitle">Recent Transactions</h3><button id="recentDetails" type="button" class="small">View all</button></div><div id="recentList"></div></section>
 
-<div data-screen="money" id="moneyShortcuts" class="money-shortcuts"><button data-money-jump="payments">Salary</button><button data-money-jump="expenses">Expenses</button><button data-money-jump="remit">Remittance</button><button data-money-jump="gifts">Money given</button><button data-money-jump="people">People</button><button data-money-jump="backupSec">Backup</button></div>
+<div data-screen="money" id="moneyShortcuts" class="money-shortcuts"><button data-money-jump="payments">Salary</button><button data-money-jump="expenses">Expenses</button><button data-money-jump="remit">Remittance</button><button data-money-jump="gifts">Money given</button><button data-money-jump="people">People</button></div>
 <section data-screen="money" id="payments" class="card"><div class="row"><h3 data-t="payments">Salary payments</h3><button id="addPayment" class="small" aria-label="Add">＋</button></div><p id="busLine" class="note"></p><div id="paymentList"></div></section>
 <section data-screen="money" id="expenses" class="card"><div class="row"><h3 data-t="expenses">Expenses</h3><button id="addExpense" class="small" aria-label="Add">＋</button></div><div id="expenseList"></div></section>
 <section data-screen="money" id="remit" class="card"><div class="row"><h3 data-t="remit">Remittance</h3><button id="addRemit" class="small" aria-label="Add">＋</button></div><p id="remitSummary" class="note"></p><div id="remitList"></div></section>
@@ -67,16 +67,16 @@
 <div class="actions"><button id="csvReport" class="secondary" data-t="csvReport">CSV (this report)</button><button id="print" class="secondary" data-t="print">Print / PDF</button></div>
 </section>
 
-<section data-screen="money" id="backupSec" class="card"><h3 data-t="backupSec">Backup &amp; restore</h3><p class="note" data-t="b_info"></p><p class="note" id="bkLast"></p>
+<section data-screen="money" id="backupSec" class="card" hidden><h3 data-t="backupSec">Backup &amp; restore</h3><p class="note" data-t="b_info"></p><p class="note" id="bkLast"></p>
 <div class="actions"><button id="backup" class="primary" data-t="backup">Export backup</button><button id="restore" class="secondary" data-t="restore">Restore backup</button><button id="csv" class="secondary" data-t="csv">CSV (all records)</button><button id="raw" class="secondary" data-t="b_raw">Export everything (recovery)</button></div>
 <input id="file" type="file" accept=".json,application/json" hidden></section>
 
 <section data-screen="settings" id="settings" class="card"><h3 data-t="settings">Settings</h3><div class="settings">
 <label><span data-t="language">Language</span><select id="language"><option value="en">English</option><option value="bn">বাংলা</option><option value="tr">Türkçe</option><option value="bg">Български</option><option value="hi">हिन्दी</option><option value="el">Ελληνικά</option></select></label>
+<label><span>Country</span><select id="country"><option value="CY">🇨🇾 Cyprus · EUR</option><option value="BD">🇧🇩 Bangladesh · BDT</option><option value="TR">🇹🇷 Türkiye · TRY</option><option value="BG">🇧🇬 Bulgaria · EUR</option><option value="IN">🇮🇳 India · INR</option><option value="GR">🇬🇷 Greece · EUR</option><option value="US">🇺🇸 United States · USD</option><option value="GB">🇬🇧 United Kingdom · GBP</option></select></label>
+<label><span>Currency</span><input id="currencyDisplay" type="text" readonly></label><p class="note country-note">Country changes currency display and the remittance bonus default. Existing amounts are not converted.</p>
 <label><span data-t="theme">Appearance</span><select id="theme"><option value="auto" data-t="themeAuto">Automatic</option><option value="light" data-t="themeLight">Light</option><option value="dark" data-t="themeDark">Dark</option></select></label>
-<label><span>Monthly basic salary (€)</span><input id="salaryMonthly" type="number" inputmode="decimal" step="0.01" min="0"></label>
-<label><span>Work days per week</span><input id="weeklyDays" type="number" inputmode="numeric" step="1" min="1" max="7"></label>
-<label><span>Calculated daily basic (€)</span><input id="basic" type="number" inputmode="decimal" step="0.01" min="0" readonly></label>
+
 <label><span data-t="s_standard">Standard hours per day</span><input id="standard" type="number" inputmode="decimal" step="0.25" min="0" max="24"></label>
 <label><span data-t="s_ot">Overtime rate (€ / hour)</span><input id="otRate" type="number" inputmode="decimal" step="0.01" min="0"></label>
 <label><span data-t="s_bus">Bus allowance per month</span><input id="bus" type="number" inputmode="decimal" step="0.01" min="0"></label>
@@ -85,7 +85,7 @@
 <label class="check"><input id="paidLeave" type="checkbox"><span data-t="s_paidLeave"></span></label>
 <label class="check"><input id="paidHoliday" type="checkbox"><span data-t="s_paidHoliday"></span></label>
 <label class="check"><input id="sickPaid" type="checkbox"><span data-t="s_sickPaid"></span></label>
-<button id="saveSettings" class="primary full" style="grid-column:1/-1" data-t="save">Save</button>
+
 </div><p id="settingsMsg" class="error" role="alert"></p>
 <div id="storageBox" class="storage"><h4 data-t="st_title">Storage &amp; backup</h4>
 <dl><div><dt data-t="st_persist">Protected storage</dt><dd id="stPersist"></dd></div><div><dt data-t="st_used">Space used</dt><dd id="stUsed"></dd></div><div><dt data-t="st_lastBackup">Last backup exported</dt><dd id="stLast"></dd></div></dl>
@@ -97,14 +97,14 @@
 <div id="printArea" aria-hidden="true"></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
-<dialog id="menu"><div class="dlg"><h3 data-t="menu">Menu</h3><div class="menu-items">
+<dialog id="menu"><div class="dlg menu-dlg"><button type="button" class="menu-close" aria-label="Close menu" id="menuClose">×</button><h3 data-t="menu">Menu</h3><div class="menu-items">
 <button type="button" data-target="top">⌂ <span data-t="home">Home</span></button>
 <button type="button" data-target="reports">▤ <span data-t="reports">Reports</span></button>
 <button type="button" data-target="people">👥 <span data-t="peopleTitle">People &amp; profiles</span></button>
 <button type="button" data-target="gifts">🎁 <span data-t="given">Money given</span></button>
+<button type="button" id="menuAccount">👤 <span>My Account</span></button>
 <button type="button" data-target="backupSec">⇅ <span data-t="backupSec">Backup &amp; restore</span></button>
 <button type="button" id="menuDutyProgram">📅 <span>Monday Duty Program</span></button><button type="button" id="menuUpdate">🔄 <span>App Update</span></button>
-<button type="button" data-target="language">🌐 <span>Language</span></button>
 <button type="button" id="privacyBtn">🔒 <span>Privacy &amp; Security</span></button>
 <button type="button" data-target="export">📤 <span>Export Data</span></button>
 <button type="button" data-target="settings">⚙ <span data-t="settings">Settings</span></button>
@@ -123,12 +123,14 @@
 <button type="button" class="quick" data-action="payments"><span>💰</span><b data-t="qa_salary">Salary</b></button>
 <button type="button" class="quick" data-action="expenses"><span>🧾</span><b data-t="qa_expense">Expense</b></button>
 <button type="button" class="quick" data-action="remittances"><span>🇧🇩</span><b data-t="qa_remit">Remittance</b></button>
-<button type="button" class="quick" data-action="gifts"><span>🎁</span><b data-t="qa_gift">Money given</b></button></div><button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
+<button type="button" class="quick" data-action="gifts"><span>🎁</span><b data-t="qa_gift">Money given</b></button><button type="button" class="quick" id="addTipQuick"><span>💶</span><b>Add Tips</b></button></div><button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
 <dialog id="editDialog"><form id="editForm" novalidate><h3 id="dlgTitle">Record</h3><div id="fields" class="fields"></div><p id="formErr" class="error" role="alert"></p>
 <div class="dialog-actions"><button class="primary" type="submit" data-t="save">Save</button><button type="button" id="deleteBtn" class="danger" hidden data-t="del">Delete</button><button type="button" class="secondary closeDlg" data-t="cancel">Cancel</button></div></form></dialog>
 
 <dialog id="confirmDlg"><div class="dlg"><h3 id="cfTitle">Confirm</h3><p id="cfMsg" class="muted"></p><div class="dialog-actions"><button type="button" id="cfOk" class="danger">OK</button><button type="button" id="cfCancel" class="secondary" data-t="cancel">Cancel</button></div></div></dialog>
 
+<dialog id="otDialog"><div class="dlg"><h3>Count Overtime</h3><label><span>Date</span><input id="otDate" type="date" required></label><label><span>Overtime hours to add</span><input id="otHoursAdd" type="number" inputmode="decimal" min="0.25" max="24" step="0.25" value="1" required></label><p id="otErr" class="error" role="alert"></p><div class="dialog-actions"><button type="button" id="saveOt" class="primary">Save OT</button><button type="button" class="secondary closeDlg">Close</button></div></div></dialog>
+<dialog id="tipsDialog"><div class="dlg"><h3>Add Tips</h3><label><span>Date</span><input id="tipDate" type="date" required tabindex="2"></label><label><span>Tips amount (€)</span><input id="tipAmount" type="number" inputmode="decimal" min="0.01" step="0.01" required tabindex="1"></label><label><span>Note (optional)</span><input id="tipNote" type="text"></label><div class="dialog-actions"><button type="button" id="saveTip" class="primary">Save Tips</button><button type="button" class="secondary closeDlg">Close</button></div></div></dialog>
 <dialog id="restoreDlg"><div class="dlg"><h3 data-t="b_restoreTitle">Restore backup</h3><div id="rsInfo" class="muted"></div>
 <button type="button" id="rsSafety" class="secondary" data-t="b_safety">Safety backup</button>
 <p class="muted" data-t="b_choose"></p>
@@ -139,6 +141,7 @@
 <dialog id="updateDlg"><div class="dlg"><h3 data-t="upd_title">New version installed</h3><p class="muted" data-t="upd_msg"></p><p class="note" id="updLastLine"></p>
 <button type="button" id="updBackup" class="primary" data-t="upd_backup">Export backup first</button><button type="button" id="updReload" class="secondary" data-t="upd_reload">Reload now</button><button type="button" id="updLater" class="secondary closeDlg" data-t="upd_later">Later</button></div></dialog>
 
+<dialog id="accountDlg"><div class="dlg"><h3>My Account</h3><div class="settings account-salary"><label><span>Monthly basic salary</span><input id="salaryMonthly" type="number" inputmode="decimal" step="0.01" min="0"></label><label><span>Work days per week</span><input id="weeklyDays" type="number" inputmode="numeric" step="1" min="1" max="7"></label><label><span>Calculated daily basic</span><input id="basic" type="number" step="0.01" min="0" readonly></label><button id="saveSettings" type="button" class="primary full">Save salary settings</button></div><p>Email account creation and Google Drive backup are not configured yet. Email sign-in requires an authentication provider; Drive backup requires a Google OAuth client setup.</p><p class="muted">This page does not upload or transmit financial data. Your current local backup and restore still work.</p><button type="button" class="secondary closeDlg">Close</button></div></dialog>
 <dialog id="privacyDlg"><div class="dlg"><h3>Privacy &amp; Security</h3><p>Your financial records are stored locally on this device in IndexedDB. The app does not send your financial data to a server. Export backups regularly. Browser storage may still be cleared by the device or browser; a backup is your safety copy.</p><button type="button" class="secondary closeDlg">Close</button></div></dialog>
 <dialog id="peopleDlg"><div class="dlg"><h3 id="personTitle">Profile</h3><div id="personProfile"></div><button type="button" id="renamePerson" class="secondary">Rename person</button><button type="button" class="secondary closeDlg">Close</button></div></dialog>
 <dialog id="aboutDlg"><div class="dlg"><h3 data-t="m_about">About</h3><p id="aboutText"></p><p class="muted" id="aboutVer"></p><a href="./recover.html" id="recoverLink" style="color:var(--accent);font-weight:700" data-t="m_recover">Recover data</a><button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>

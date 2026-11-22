@@ -6,7 +6,7 @@
   'use strict';
 
   var DEFAULTS = {
-    basic: 25, standard: 8, otRate: 2.77, bus: 50, bonus: 2.5,
+    basic: 25, standard: 8, otRate: 2.77, bus: 50, bonus: 0,
     paidLeave: true, paidHoliday: true, sickPaid: false, rentEnabled: false,
     language: 'en', theme: 'auto'
   };
@@ -44,12 +44,14 @@
     if (status === 'worked') {
       // New records can track basic hours and overtime separately. Legacy records
       // without otExtraHours retain their original total-hours interpretation.
-      if (w && w.otExtraHours !== undefined) {
-        var basicHours = Math.min(num(s.standard), num(w.hours));
-        base = num(s.standard) > 0 ? (basicHours / num(s.standard)) * num(s.basic) : 0;
-        otHours = num(w.otExtraHours) + Math.max(0, num(w.hours) - num(s.standard));
+      // A worked duty always earns the full basic daily rate. When the record
+      // has an explicit OT field, it is authoritative: do not infer OT again
+      // from the hours field (which may be the basic shift length).
+      base = num(s.basic);
+      if (w && w.otExtraHours !== undefined && w.otExtraHours !== null && w.otExtraHours !== '') {
+        otHours = Math.max(0, num(w.otExtraHours));
       } else {
-        base = num(s.basic);
+        // Legacy records without explicit OT retain total-hours interpretation.
         otHours = Math.max(0, num(w.hours) - num(s.standard));
       }
       otPay = otHours * num(s.otRate);
@@ -90,16 +92,17 @@
       else if (d.status === 'sick_leave') out.sickDays++; else if (d.status === 'unpaid_leave') out.unpaidLeaveDays++;
       out.wages += d.base; out.otPay += d.otPay; out.tips += num(x.tips);
     });
+    (data.tips || []).filter(function (x) { return String(x.date || '').slice(0, 7) === m; }).forEach(function (x) { out.tips += num(x.amount); });
     out.hoursWorked = r2(out.hoursWorked);
     out.wages = r2(out.wages); out.otPay = r2(out.otPay); out.otHours = r2(out.otHours); out.tips = r2(out.tips);
-    out.earned = r2(out.wages + out.otPay);
     var busRate = s.bus; var snapshotWork = w.slice().sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));}).find(function(x){return x.busAllowanceRate!==undefined&&Number.isFinite(Number(x.busAllowanceRate));}); if(snapshotWork)busRate=Number(snapshotWork.busAllowanceRate); out.busDue = out.workedDays > 0 ? r2(busRate) : 0;
+    out.earned = r2(out.wages + out.otPay + out.busDue);
     p.forEach(function (x) { var a = num(x.amount), b = Math.min(Math.max(0, num(x.bus)), a); out.paymentsTotal += a; out.busReceived += b; });
     out.paymentsTotal = r2(out.paymentsTotal); out.busReceived = r2(out.busReceived);
-    // Bus allowance Paid / Unpaid: derived from the payments' "bus allowance included" amounts. Display only - never part of earned or salary outstanding.
+    // Bus allowance is part of total earned and received salary; its paid/unpaid status remains shown separately.
     out.busOutstanding = r2(Math.max(0, out.busDue - out.busReceived));
     out.busStatus = out.busDue <= 0 ? 'notdue' : (out.busOutstanding <= 0 ? 'paid' : (out.busReceived > 0 ? 'partial' : 'unpaid'));
-    out.salaryReceived = r2(out.paymentsTotal - out.busReceived);       // bus allowance is never mixed into salary
+    out.salaryReceived = out.paymentsTotal;
     var diff = r2(out.earned - out.salaryReceived);
     out.outstanding = diff > 0 ? diff : 0; out.overpaid = diff < 0 ? -diff : 0;
     e.forEach(function (x) { if (isRent(x) && !s.rentEnabled) out.rentExcluded += num(x.amount); else out.expenses += num(x.amount); });

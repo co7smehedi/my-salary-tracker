@@ -6,7 +6,7 @@
 })(typeof self !== 'undefined' ? self : this, function (C) {
   'use strict';
 
-  var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms'];
+  var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms', 'tips'];
   var SETTING_KEYS = ['basic', 'standard', 'otRate', 'bus', 'bonus'];
   var MAX = 1e12;            // anything bigger than this is certainly a typo or a damaged file
 

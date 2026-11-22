@@ -1,10 +1,10 @@
-/* My Salary Tracker v9.5.4 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
+/* My Salary Tracker v9.5.5 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.5.4';
+  var VERSION = '9.5.9';
   var DB_NAME = 'salary-tracker-db';
-  var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms'];
+  var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms', 'tips'];
   var LEGACY = 'workEntries';
   var SETTINGS_KEY = 'mst-settings';
   var LAST_BACKUP_KEY = 'mst-last-backup';      // ISO time of the last successful 'Export backup' (device only, never inside a backup file)
@@ -12,7 +12,7 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var state = {
-    db: null, dbReady: false, dbAttempt: null, data: { work: [], payments: [], expenses: [], remittances: [], gifts: [], dutyPrograms: [] },
+    db: null, dbReady: false, dbAttempt: null, data: { work: [], payments: [], expenses: [], remittances: [], gifts: [], dutyPrograms: [], tips: [] },
     settings: Object.assign({}, C.DEFAULTS), month: new Date(), rtype: 'month', ryear: new Date().getFullYear(),
     edit: null, pending: null, dbError: null, storage: null, updatePending: false, workSelected: null, personSelected: null
   };
@@ -26,7 +26,7 @@
   }
   function loc() { return I.LOCALES[lang()]; }
   function money(n, cur) {
-    cur = cur || 'EUR';
+    cur = cur || (state.settings.currency || 'EUR');
     try { return new Intl.NumberFormat(loc(), { style: 'currency', currency: cur }).format(C.num(n)); }
     catch (e) { return C.num(n).toFixed(2) + ' ' + cur; }
   }
@@ -89,7 +89,7 @@
     toastState = { msg: msg, label: actionLabel, action: action }; drawToast();
     var t = $('toast'); t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, actionLabel ? 12000 : 3200);
   }
-  function openDlg(id) { var d = $(id); if (d.showModal) d.showModal(); else d.setAttribute('open', ''); }
+  function openDlg(id) { var d = $(id); if (d.showModal) d.showModal(); else d.setAttribute('open', ''); var h=d.querySelector('h3'); if(h){if(!h.hasAttribute('tabindex'))h.setAttribute('tabindex','-1');try{h.focus({preventScroll:true});}catch(e){h.focus();}} }
   function closeDlg(id) { var d = $(id); if (d.close) d.close(); else d.removeAttribute('open'); }
   function askConfirm(title, msg, okLabel) {
     return new Promise(function (resolve) {
@@ -111,6 +111,8 @@
     s.salaryMonthly = s.salaryMonthly || 650; s.weeklyDays = Math.max(1, Math.min(7, Math.round(s.weeklyDays || 6))); s.people = Array.isArray(r.people) ? r.people.filter(function(n){return typeof n==='string'&&n.trim();}).map(function(n){return n.trim();}) : [];
     if (I.LANGS.indexOf(r.language) >= 0) s.language = r.language;
     if (['auto', 'light', 'dark'].indexOf(r.theme) >= 0) s.theme = r.theme;
+    var countries={CY:{currency:'EUR',bonus:0},BD:{currency:'BDT',bonus:2.5},TR:{currency:'TRY',bonus:0},BG:{currency:'EUR',bonus:0},IN:{currency:'INR',bonus:0},GR:{currency:'EUR',bonus:0},US:{currency:'USD',bonus:0},GB:{currency:'GBP',bonus:0}};
+    s.country=countries[r.country]?r.country:'CY'; s.currency=countries[s.country].currency; if(r.country && countries[r.country] && r.currency===countries[r.country].currency) s.bonus=Number(r.bonus||0); else if(!r.country && r.bonus===undefined) s.bonus=0;
     return s;
   }
   function loadSettings() { try { state.settings = cleanSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { state.settings = cleanSettings({}); } }
@@ -336,8 +338,8 @@
     $('month').textContent = fmtMonth(m);
     $('clock').setAttribute('aria-label', tr('clock_label')); clockShown = { d: '', t: '' }; tickClock();
     $('earned').textContent = money(c.wages); $('days').textContent = c.workedDays; $('basicDays').textContent = c.workedDays; $('ot').textContent = numFmt(c.otHours) + ' h';
-    var monthTips = d.work.filter(function(x){return String(x.date||'').slice(0,7)===m;}).reduce(function(n,x){return n+C.num(x.tips);},0); $('monthOtIncome').textContent=money(c.otPay); $('monthTipsIncome').textContent=money(monthTips);
-    var todayRec=d.work.find(function(x){return x.date===today();}), todayParts=todayRec?C.dayParts(todayRec,s):{base:0,otHours:0,otPay:0}; var todayTips=todayRec?C.num(todayRec.tips):0, todayTotal=C.r2(todayParts.base+todayParts.otPay+todayTips); $('todayEarnings').textContent=money(todayTotal); $('todayBreakdown').innerHTML='<span>Basic Duty · '+money(todayParts.base)+'</span><span>Overtime · '+numFmt(todayParts.otHours)+' h · '+money(todayParts.otPay)+'</span><span>Tips · '+money(todayTips)+'</span><b>Total · '+money(todayTotal)+'</b>'; renderTodayProgram();
+    var monthTips = d.work.filter(function(x){return String(x.date||'').slice(0,7)===m;}).reduce(function(n,x){return n+C.num(x.tips);},0) + (d.tips||[]).filter(function(x){return String(x.date||'').slice(0,7)===m;}).reduce(function(n,x){return n+C.num(x.amount);},0); $('monthOtIncome').textContent=money(c.otPay); $('monthTipsIncome').textContent=money(monthTips);
+    var todayRec=d.work.find(function(x){return x.date===today();}), todayParts=todayRec?C.dayParts(todayRec,s):{base:0,otHours:0,otPay:0}; var todayTips=(todayRec?C.num(todayRec.tips):0)+(d.tips||[]).filter(function(x){return x.date===today();}).reduce(function(n,x){return n+C.num(x.amount);},0), todayTotal=C.r2(todayParts.base+todayParts.otPay+todayTips); $('todayEarnings').textContent=money(todayTotal); $('todayBreakdown').innerHTML='<span>Basic Duty · '+money(todayParts.base)+'</span><span>Overtime · '+numFmt(todayParts.otHours)+' h · '+money(todayParts.otPay)+'</span><span>Tips · '+money(todayTips)+'</span><b>Total · '+money(todayTotal)+'</b>'; renderTodayProgram();
     $('formula').textContent = tr('fml', { basic: numFmt(s.basic), ot: numFmt(s.otRate) });
     $('received').textContent = money(c.salaryReceived); $('incomeLabel').textContent = tr('incomeThisMonth'); $('expTotal').textContent = money(c.expenses);
     $('busLine').textContent = c.busDue > 0
@@ -372,7 +374,7 @@
 
     ['basic', 'standard', 'otRate', 'bus', 'bonus', 'salaryMonthly', 'weeklyDays'].forEach(function (k) { if (document.activeElement !== $(k)) $(k).value = s[k]; });
     ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { $(k).checked = !!s[k]; });
-    $('language').value = lang(); $('theme').value = s.theme;
+    $('language').value = lang(); $('theme').value = s.theme; $('country').value=s.country||'CY'; $('currencyDisplay').value=(s.currency||'EUR');
     $('verLine').textContent = 'My Salary Tracker • ' + tr('ver') + ' ' + VERSION;
     $('aboutText').textContent = tr('about_text'); $('aboutVer').textContent = tr('ver') + ' ' + VERSION;
     renderBackupUi(); renderReport(); renderDesignSummary(c); renderDBBanner();
@@ -485,7 +487,7 @@
   /* ---------- forms ---------- */
   var NUM = { step: '0.01', min: '0' };
   var FIELDS = {
-    work: [['date', 'f_date', 'date', 1], ['status', 'f_status', 'status', 1], ['hours', 'f_hours', 'number', 0, { step: '0.25', min: '0', max: '24' }], ['otExtraHours', 'Overtime hours', 'number', 0, { step: '0.25', min: '0', max: '24' }], ['tips', 'Tips (€)', 'number', 0, { step: '0.01', min: '0' }]],
+    work: [['date', 'f_date', 'date', 1], ['status', 'f_status', 'status', 1], ['hours', 'f_hours', 'number', 0, { step: '0.25', min: '0', max: '24' }], ['otExtraHours', 'Overtime hours', 'number', 0, { step: '0.25', min: '0', max: '24' }]],
     payments: [['date', 'f_payDate', 'date', 1], ['month', 'f_salaryMonth', 'month', 1], ['amount', 'f_amountRecv', 'number', 1, NUM], ['bus', 'f_bus', 'number', 0, NUM], ['note', 'f_note', 'text', 0]],
     expenses: [['date', 'f_date', 'date', 1], ['category', 'f_category', 'category', 1], ['amount', 'f_amount', 'number', 1, NUM], ['note', 'f_note', 'text', 0]],
     remittances: [['date', 'f_date', 'date', 1], ['recipient', 'f_recipient', 'text', 1], ['amount', 'f_sent', 'number', 1, NUM], ['rate', 'f_rate', 'number', 1, { step: '0.0001', min: '0' }], ['fee', 'f_fee', 'number', 0, NUM], ['bonus', 'f_bonus', 'number', 0, { step: '0.1', min: '0' }], ['actualBdt', 'f_actualBdt', 'number', 0, NUM], ['note', 'f_note', 'text', 0]],
@@ -500,7 +502,7 @@
     var box = $('fields'); box.innerHTML = '';
     FIELDS[kind].forEach(function (f) {
       var key = f[0], type = f[2], wrap = document.createElement('label'), span = document.createElement('span'), input;
-      span.textContent = tr(f[1]); wrap.appendChild(span); if(kind==='work'&&key==='hours') wrap.setAttribute('data-work-hours-field','');
+      span.textContent = (kind==='remittances'&&key==='rate') ? ('Exchange rate (1 EUR = '+({CY:'EUR',BD:'BDT',TR:'TRY',BG:'EUR',IN:'INR',GR:'EUR',US:'USD',GB:'GBP'}[state.settings.country||'CY'])+')') : tr(f[1]); wrap.appendChild(span); if(kind==='work'&&key==='hours') wrap.setAttribute('data-work-hours-field','');
       var val = old[key];
       if (type === 'status' || type === 'category' || type === 'currency' || (kind==='gifts'&&key==='person')) {
         input = document.createElement('select');
@@ -514,7 +516,7 @@
       } else {
         input = document.createElement('input'); input.type = type;
         if (type === 'number') { input.inputMode = 'decimal'; var a = f[4] || {}; Object.keys(a).forEach(function (n) { input.setAttribute(n, a[n]); }); }
-        if (val == null) val = { date: defaultDate(), month: viewMonth(), hours: 8, otExtraHours: 0, tips: 0, bonus: state.settings.bonus, fee: 0, bus: 0 }[key]; if (val == null || (type === 'number' && val === null)) val = '';
+        if (val == null) val = { date: defaultDate(), month: viewMonth(), hours: 8, otExtraHours: 0, tips: 0, bonus: state.settings.bonus, fee: 0, bus: 0, rate: ({CY:1,BD:140,TR:49,BG:1,IN:94,GR:1,US:1.09,GB:0.86}[state.settings.country||'CY']) }[key]; if (val == null || (type === 'number' && val === null)) val = '';
       }
       input.name = key; input.value = val; if (f[3]) input.required = true;
       wrap.appendChild(input); box.appendChild(wrap);
@@ -757,8 +759,11 @@
   }
 
   function closeWorkCalendar() { var panel=$('calendarPanel'),btn=$('calendarToggle'); if(panel&&btn){panel.hidden=true;btn.setAttribute('aria-expanded','false');btn.textContent=tr('showCalendar');} }
+  var backupRevealFromMenu = false;
   function switchView(view) {
     closeWorkCalendar();
+    if($('backupSec')) $('backupSec').hidden = !backupRevealFromMenu;
+    backupRevealFromMenu = false;
     document.body.setAttribute('data-view', view);
     if(['home','work','money','reports','settings'].indexOf(view)<0)view='home';
     document.body.setAttribute('data-view', view);
@@ -768,12 +773,13 @@
 
   /* ---------- events ---------- */
   function bind() {
-    $('menuBtn').onclick = function () { openDlg('menu'); }; $('menuDutyProgram').onclick=openProgram; $('saveProgram').onclick=saveProgram; $('dbRetry').onclick=function(){return initializeDatabase();}; $('balanceDetails').onclick=function(){switchView('reports');}; $('recentDetails').onclick=function(){switchView('money');}; $('programRest').onchange=function(){ $('programTimes').hidden=this.checked; }; $('programHistory').addEventListener('click',function(e){var b=e.target.closest('[data-program-edit]');if(!b)return;var p=state.data.dutyPrograms.find(function(x){return x.id===b.getAttribute('data-program-edit');});if(!p)return;$('programDate').value=p.date;$('programRest').checked=!!p.rest;$('programTimes').hidden=!!p.rest;$('programStart').value=p.start||'';$('programEnd').value=p.end||'';$('programBreak').value=p.breakMinutes||0;$('programOt').value=p.otHours||0;$('programPreview').textContent='Existing photo: '+(p.photo&&p.photo.name||'saved');});
-    $('menuUpdate').onclick=function(){closeDlg('menu');if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){navigator.serviceWorker.getRegistration().then(function(reg){if(reg)reg.update().catch(function(){});toast('Update check started. If an update is available, the app will prompt you.');}).catch(function(){toast('Could not check for updates.');});}else{toast('Update check is not supported in this browser.');}};$('privacyBtn').onclick=function(){closeDlg('menu');openDlg('privacyDlg');};
+    $('menuBtn').onclick = function () { openDlg('menu'); }; $('menuClose').onclick=function(){closeDlg('menu');}; $('menuDutyProgram').onclick=openProgram; $('saveProgram').onclick=saveProgram; $('dbRetry').onclick=function(){return initializeDatabase();}; $('balanceDetails').onclick=function(){switchView('reports');}; $('recentDetails').onclick=function(){switchView('money');}; $('programRest').onchange=function(){ $('programTimes').hidden=this.checked; }; $('programHistory').addEventListener('click',function(e){var b=e.target.closest('[data-program-edit]');if(!b)return;var p=state.data.dutyPrograms.find(function(x){return x.id===b.getAttribute('data-program-edit');});if(!p)return;$('programDate').value=p.date;$('programRest').checked=!!p.rest;$('programTimes').hidden=!!p.rest;$('programStart').value=p.start||'';$('programEnd').value=p.end||'';$('programBreak').value=p.breakMinutes||0;$('programOt').value=p.otHours||0;$('programPreview').textContent='Existing photo: '+(p.photo&&p.photo.name||'saved');});
+    $('menuUpdate').onclick=function(){closeDlg('menu');if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){navigator.serviceWorker.getRegistration().then(function(reg){if(reg)reg.update().catch(function(){});toast('Update check started. If an update is available, the app will prompt you.');}).catch(function(){toast('Could not check for updates.');});}else{toast('Update check is not supported in this browser.');}};$('privacyBtn').onclick=function(){closeDlg('menu');openDlg('privacyDlg');}; $('menuAccount').onclick=function(){closeDlg('menu');openDlg('accountDlg');};
     document.querySelectorAll('[data-money-jump]').forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-money-jump');document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});};});
-    document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'||id==='language'?'settings':id==='work'?'work':'money');if(id==='people'||id==='backupSec'||id==='gifts'||id==='language'||id==='export')setTimeout(function(){var target=id==='language'?'settings':id==='export'?'backupSec':id;document.getElementById(target).scrollIntoView({behavior:'smooth',block:'start'});if(id==='language')document.getElementById('language').focus();},80); }; });
+    document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); if(id==='backupSec') backupRevealFromMenu=true; switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'?'settings':id==='work'?'work':'money');if(id==='people'||id==='backupSec'||id==='gifts'||id==='export')setTimeout(function(){var target=id==='export'?'backupSec':id;document.getElementById(target).scrollIntoView({behavior:'smooth',block:'start'});},80); }; });
     $('aboutBtn').onclick = function () { closeDlg('menu'); openDlg('aboutDlg'); };
-    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot'){var old=state.data.work.find(function(x){return x.date===today();});var baseHours=old&&C.normStatus(old.status)==='worked'?Math.min(state.settings.standard,C.num(old.hours)):state.settings.standard;var priorOt=old?(old.otExtraHours!==undefined?C.num(old.otExtraHours):Math.max(0,C.num(old.hours)-state.settings.standard)):0;openForm('work',old?Object.assign({},old,{status:'worked',hours:baseHours,otExtraHours:priorOt+1}):{date:today(),status:'worked',hours:state.settings.standard,otExtraHours:1});}else openForm(k);};});
+    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot'){ $('otDate').value=today(); $('otHoursAdd').value='1'; $('otErr').textContent=''; openDlg('otDialog'); }else openForm(k);};});
+    $('saveOt').onclick=async function(){if(!state.dbReady){$('otErr').textContent='Database is not ready. Tap Retry first.';return;}var date=$('otDate').value,add=Number($('otHoursAdd').value);if(!C.isDate(date)||!Number.isFinite(add)||add<=0||add>24){$('otErr').textContent='Enter a valid date and overtime amount (0.25–24 hours).';return;}try{var old=state.data.work.find(function(x){return x.date===date;});var rec=old?Object.assign({},old):{id:uid(),date:date,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,tips:0,note:''};if(C.normStatus(rec.status)!=='worked'){rec.status='worked';rec.hours=state.settings.standard;}if(rec.hours==null||Number(rec.hours)<=0)rec.hours=state.settings.standard;rec.otExtraHours=C.r2((rec.otExtraHours!==undefined&&rec.otExtraHours!==null?Number(rec.otExtraHours):Math.max(0,Number(rec.hours)-state.settings.standard))+add);if(rec.otExtraHours>24){$('otErr').textContent='Total overtime for this date cannot exceed 24 hours.';return;}await putWork(rec);closeDlg('otDialog');var mk=date.slice(0,7);if(mk!==viewMonth())state.month=new Date(+mk.slice(0,4),+mk.slice(5,7)-1,1);await refresh();toast(add+' overtime hour(s) added.');}catch(err){$('otErr').textContent='Could not save overtime: '+(err&&err.message||err);}};
     document.querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){var target=b.getAttribute('data-nav');if(target==='quickActions'){openDlg('quickAddDialog');return;}switchView(target==='top'?'home':target==='work'?'work':target==='payments'?'money':target==='reports'?'reports':'home');};});
     document.addEventListener('click', function (e) {
       var cl = e.target.closest('.closeDlg'); if (cl) { var dd = cl.closest('dialog'); if (dd) { if (dd.close) dd.close(); else dd.removeAttribute('open'); } return; }
@@ -790,7 +796,7 @@
     $('addPerson').onclick=function(){var name=prompt('নতুন ব্যক্তির নাম লিখুন।');if(name&&name.trim()){addPersonName(name.trim());renderPeople();openForm('gifts',{date:defaultDate(),person:name.trim(),currency:'EUR'});}};
     $('renamePerson').onclick=function(){renamePerson(state.personSelected);}; $('personDirectory').addEventListener('click',function(e){var b=e.target.closest('[data-person-rename]');if(b)renamePerson(b.getAttribute('data-person-rename'));});
     $('addWork').onclick = function () { openForm('work'); }; $('addPayment').onclick = function () { openForm('payments'); }; $('addExpense').onclick = function () { openForm('expenses'); };
-    $('addRemit').onclick = function () { openForm('remittances'); }; $('addGift').onclick = function () { openForm('gifts'); };
+    $('addRemit').onclick = function () { openForm('remittances'); }; $('addGift').onclick = function () { openForm('gifts'); }; function openTipsEntry(){closeDlg('quickAddDialog');$('tipDate').value=defaultDate();$('tipAmount').value='';$('tipDate').blur();$('tipNote').value='';openDlg('tipsDialog');} $('addTipQuick').onclick=openTipsEntry; $('addTipsHome').onclick=openTipsEntry; $('saveTip').onclick=async function(){var date=$('tipDate').value,amount=Number($('tipAmount').value);if(!C.isDate(date)||!Number.isFinite(amount)||amount<=0){toast('তারিখ ও সঠিক Tips amount দিন।');return;}var rec={id:uid(),date:date,amount:C.r2(amount),note:$('tipNote').value.trim()};try{await put('tips',rec);closeDlg('tipsDialog');var mk=date.slice(0,7);if(mk!==viewMonth())state.month=new Date(+mk.slice(0,4),+mk.slice(5,7)-1,1);await refresh();toast('Tips যোগ হয়েছে।');}catch(err){toast('Tips যোগ করা যায়নি: '+(err.message||err));};};
     $('editForm').addEventListener('submit', saveForm); $('fields').addEventListener('change',function(e){if(e.target.name==='person'&&e.target.value==='__add_person__'){var n=prompt('নতুন ব্যক্তির নাম লিখুন');if(n&&n.trim()){addPersonName(n.trim());var o=document.createElement('option');o.value=n.trim();o.textContent=n.trim();e.target.insertBefore(o,e.target.querySelector('[value=__add_person__]'));e.target.value=n.trim();}else e.target.value='';}});
     $('editDialog').addEventListener('close', function () { state.edit = null; });
     $('deleteBtn').onclick = async function () { if (state.edit && state.edit.id != null) { var k = state.edit.kind, rec = state.data[k].find(function (x) { return x.id === state.edit.id; }); closeDlg('editDialog'); await deleteRecord(k, rec); } };
@@ -800,6 +806,7 @@
     $('rPrev').onclick = function () { if (state.rtype === 'month') { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); render(); } else { state.ryear--; renderReport(); } };
     $('rNext').onclick = function () { if (state.rtype === 'month') { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); render(); } else { state.ryear++; renderReport(); } };
     $('language').onchange = function () { state.settings.language = $('language').value; persistSettings(); render(); };
+    $('country').onchange=function(){var map={CY:{currency:'EUR',bonus:0},BD:{currency:'BDT',bonus:2.5},TR:{currency:'TRY',bonus:0},BG:{currency:'EUR',bonus:0},IN:{currency:'INR',bonus:0},GR:{currency:'EUR',bonus:0},US:{currency:'USD',bonus:0},GB:{currency:'GBP',bonus:0}};var c=map[this.value];if(!c)return;state.settings.country=this.value;state.settings.currency=c.currency;state.settings.bonus=c.bonus;$('bonus').value=c.bonus;persistSettings();render();};
     $('theme').onchange = function () { state.settings.theme = $('theme').value; persistSettings(); render(); };
     $('salaryMonthly').oninput=function(){var d=Number($('salaryMonthly').value),w=Number($('weeklyDays').value);$('basic').value=(d>0&&w>0)?(d/(w*52/12)).toFixed(2):'0';}; $('weeklyDays').oninput=function(){var d=Number($('salaryMonthly').value),w=Number(this.value);$('basic').value=(d>0&&w>0)?(d/(w*52/12)).toFixed(2):'0';};
     $('saveSettings').onclick = function () {

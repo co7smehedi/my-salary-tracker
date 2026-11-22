@@ -1,4 +1,4 @@
-# My Salary Tracker — version 9.5.4 (database repair)
+# My Salary Tracker — version 9.5.9 (income calculation and tips fix)
 
 A private salary, expense and money tracker that works offline on iPhone and Android.
 **Your records stay on your phone. Nothing is sent to any server.**
@@ -12,18 +12,15 @@ The file list is the same as 9.1 (no new files). Upload all 15 files (see step 1
 
 There is **no `icons` folder**. All icons sit next to the other files.
 
-## 0. What changed in 9.5.4 (database repair — no records, settings or database names/versions were changed)
-
-**Cause of "ডাটাবেইজ প্রস্তুত নয়" (proven by test):** the Home page had no element with id `ot` (overtime), but the screen-drawing code writes to it. Drawing the screen therefore crashed every time. The database itself opened fine, but the crash happened inside the database start-up step, so the app marked the database "not ready". Retry ran the same step and crashed the same way. Saving was disabled because the app thought the database was not ready.
+## What changed in 9.5.5 (basic duty / overtime / tips fix)
 
 **Fixes**
-- Added the missing Overtime element to the Home page.
-- A screen-drawing error can no longer be reported as a database failure; it shows as "Screen error" with the real message and the database stays usable.
-- Start-up no longer stops if the screen crashes, and the update check (service worker) is registered first, so a broken release can always be replaced.
-- The banner now shows the real error category and message (BLOCKED, TIMEOUT, QUOTA, STORAGE_DENIED, BROWSER_STORAGE_ERROR ...) and what to do. Retry returns its result and performs the full open again.
-- If iOS closes the database connection in the background, the next save reopens it automatically.
-- The old-version "workEntries" copy now really runs at start-up (it was silently blocked before). It only adds days that have no record yet, never overwrites, and never deletes the old store.
-- Service worker cache renamed `mst-v9-5-4`; older caches are removed when it activates.
+- Basic Duty always earns the full daily Basic amount. Explicit OT hours are used as the OT total and are not counted twice from the shift-length field.
+- Legacy work entries without an explicit OT value retain their old total-hours OT calculation.
+- Added a separate manual Tips entry (date, amount, optional note) inside Quick Add. Tips are saved in a separate IndexedDB store and counted in the month and today totals.
+- Tips from older work records remain included; no historical work records are rewritten.
+- Added My Account to the Menu, but email sign-in and Google Drive backup are not connected. Those require authentication/OAuth configuration and will be completed separately.
+- The Home page layout remains the same; the Tips button is inside Quick Add and My Account is in the Menu.
 
 **If the banner says BLOCKED:** fully close the Home Screen app (swipe it away) and every Safari tab of this app, wait a few seconds, open the app again and tap Retry.
 
@@ -192,3 +189,25 @@ Known limitations in this build: weekly schedule program/OCR import, background 
 - Work, quick-add, and Monday schedule actions stay disabled until local records finish loading. Existing records are never deleted or reset.
 - Balance panel now shows received and outgoing totals, with a working Reports shortcut. Recent Transactions has a View All shortcut to the Money page.
 - The Monday program still stores the photo locally and requires manual entry of schedule details; automatic OCR is not bundled in this build.
+
+
+## 9.5.9 changes
+- Monthly bus allowance is included in total earned salary and outstanding; the bus paid/unpaid breakdown remains separately visible.
+- Added a Tips + button on the Home page beside the Tips amount.
+- Backup & Restore is hidden in normal screens and appears only after selecting it from the Menu.
+- Home layout otherwise unchanged.
+
+## 9.5.9 requested fixes
+- Backup & Restore is hidden outside its menu-opened section.
+- OT quick action uses a dedicated overtime-only form (date + OT hours to add), removing the Basic Duty hours field.
+- Tips dialog opens without automatically triggering the date picker; calendar controls are compact.
+
+
+### Country and currency (v9.5.9)
+Country selection is independent from language. It changes the displayed currency and default remittance bonus; it does not convert existing numeric amounts. The remittance calculator remains EUR-based for its exchange-rate input.
+
+## 9.5.9 requested refinements
+- Compact home date/time panel with more separation between the two values.
+- Smaller, accented month navigation controls.
+- Dialogs focus the title, not date inputs, to avoid native date-picker popups opening automatically.
+- New remittance entries use editable approximate country exchange-rate defaults (Bangladesh: 140 BDT per EUR).
