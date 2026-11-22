@@ -267,17 +267,11 @@ dialog h3[tabindex="-1"]{outline:none}
 #clockDate{order:1;font-size:10px;text-align:right;margin-left:auto}
 #clockTime,#clockDate{padding:2px 5px;border-radius:6px;line-height:1.15}
 
-/* v9.5.12: polished, lightweight motion (offline; respects reduced motion) */
-@keyframes mst-rise-in{from{opacity:0;transform:translateY(9px) scale(.992)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes mst-soft-pop{0%{transform:scale(.97)}65%{transform:scale(1.015)}100%{transform:scale(1)}}
-@keyframes mst-fade-in{from{opacity:0}to{opacity:1}}
-.mst-enter{animation:mst-rise-in .32s cubic-bezier(.2,.7,.25,1) both;animation-delay:var(--mst-delay,0ms)}
-.card{transition:border-color .22s ease,background-color .22s ease,transform .22s ease}
-.quick,.quick-grid button,.bottom-nav button,.iconbtn,.month button,.small,.primary,.secondary,.calendar-toggle,.duty-toggle{transition:transform .16s ease,filter .2s ease,box-shadow .2s ease}
-.quick:hover,.quick-grid button:hover,.bottom-nav button:hover,.iconbtn:hover,.month button:hover,.small:hover,.primary:hover,.secondary:hover,.calendar-toggle:hover,.duty-toggle:hover{filter:brightness(1.08)}
-.quick:active,.quick-grid button:active,.bottom-nav button:active,.iconbtn:active,.month button:active,.small:active,.primary:active,.secondary:active,.calendar-toggle:active,.duty-toggle:active{transform:scale(.965)}
-button:focus-visible{animation:mst-soft-pop .22s ease-out}
-dialog[open]{animation:mst-fade-in .16s ease-out}
-dialog[open]>.card,dialog[open] .dialog-content{animation:mst-rise-in .22s ease-out}
-#todayEarnings,#earned,#received,#expTotal,#monthOtIncome,#monthTipsIncome{font-variant-numeric:tabular-nums}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}.mst-enter{animation:none!important}}
+/* v9.5.12 functional fixes */
+.quick span svg{width:27px;height:27px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block;color:var(--accent)}
+.quick{transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease}.quick:active{transform:scale(.97)}
+#bulkDates label{grid-template-columns:1fr auto;align-items:end;gap:8px}#bulkDates label span{grid-column:1/-1}#bulkDates label input{grid-column:1}#bulkDates label button{grid-column:2;min-width:38px}
+#bulkWorkDlg .dlg{max-height:85dvh;overflow:auto}
+#bulkWorkDlg [hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){.quick{transition:none}.quick:active{transform:none}}
+#fields [hidden]{display:none!important}

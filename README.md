@@ -1,6 +1,13 @@
-# My Salary Tracker — version 9.5.12 (income calculation and tips fix)
+# My Salary Tracker — version 9.5.12
 
-## Changes in 9.5.11
+## v9.5.12 fixes
+- Rest Day, Holiday and Unpaid Leave hide Basic Duty hours and overtime fields. Non-work statuses save zero basic hours and zero overtime.
+- Added multi-date work entry for older dates, including Worked, Rest Day, Holiday and Unpaid Leave. Existing dates are skipped to prevent overwriting.
+- Expanded currency choices for money-given records.
+- Replaced Quick Actions emoji with consistent line SVG icons.
+
+
+## Changes in 9.5.12
 - Home clock: compact time on the left and date on the right.
 - Backup screen action now clearly supports importing/restoring backup JSON. Standard backups and recovery-export JSON are supported; recovery exports can also restore settings from the saved localStorage snapshot.
 - About profile text for Mehedi Hasan, a waiter working in Cyprus (localized in Bengali and English).
@@ -217,9 +224,3 @@ Country selection is independent from language. It changes the displayed currenc
 - Smaller, accented month navigation controls.
 - Dialogs focus the title, not date inputs, to avoid native date-picker popups opening automatically.
 - New remittance entries use editable approximate country exchange-rate defaults (Bangladesh: 140 BDT per EUR).
-
-
-## Changes in 9.5.12
-- Added subtle page-entry and button feedback animations.
-- Motion respects the device's reduced-motion accessibility preference.
-- Kept animation code lightweight, local, and offline-friendly (no remote jQuery dependency).
