@@ -151,3 +151,27 @@ Known limitations in this build: weekly schedule program/OCR import, background 
 - Moved the Today's duty card directly above Quick Actions on the Home screen.
 - Ensured every form-opening action (including Work and OT) closes the calendar first; calendar opens only from its explicit Show calendar control.
 - No data schema, records, salary formulas, or backup behavior changed.
+
+
+## v9.5.0 update
+- Added compact monthly basic income, today's earnings breakdown, and monthly OT/tips totals.
+- Tips are stored on each existing work record and included in monthly calculations. Existing records default to zero tips.
+- Added Monday Duty Program in the menu. Paper photos and confirmed schedule rows are stored locally in IndexedDB and included in backups. Schedule dates are unique; replacing a date requires confirmation.
+- Schedule details are entered manually after photo upload. No cloud OCR or external upload is performed; OCR is not included in this build.
+- Added a small home schedule preview for today only; rest days display as Rest Day. Planned schedules do not mark attendance or add salary.
+
+## v9.5.2 rebuild from v9.4.2 baseline
+- Monday Duty Program photo picker now permits Camera or Photo Library (removed camera-only capture hint).
+- Fixed Quick Action labels across all six languages.
+- Hides Duty Hours unless Work status is Worked.
+- Storage usage/quota values are safely handled when unavailable; never displays `null`.
+- IndexedDB blocked upgrade no longer rejects prematurely; writes show a readable database-not-ready error instead of null exceptions.
+- Fresh installs no longer import hard-coded historical transactions or names. Existing local records/settings are not deleted.
+
+
+## v9.5.3 database recovery and dashboard actions
+- Database startup shows a persistent loading/error banner and a Retry button if local IndexedDB cannot open.
+- A blocked database upgrade times out with a clear instruction to close other app tabs; it does not silently leave data-entry controls active.
+- Work, quick-add, and Monday schedule actions stay disabled until local records finish loading. Existing records are never deleted or reset.
+- Balance panel now shows received and outgoing totals, with a working Reports shortcut. Recent Transactions has a View All shortcut to the Money page.
+- The Monday program still stores the photo locally and requires manual entry of schedule details; automatic OCR is not bundled in this build.

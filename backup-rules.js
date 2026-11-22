@@ -6,7 +6,7 @@
 })(typeof self !== 'undefined' ? self : this, function (C) {
   'use strict';
 
-  var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts'];
+  var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms'];
   var SETTING_KEYS = ['basic', 'standard', 'otRate', 'bus', 'bonus'];
   var MAX = 1e12;            // anything bigger than this is certainly a typo or a damaged file
 
@@ -23,6 +23,7 @@
 
   function checkRecord(s, x, where) {          // returns an error object or null
     var n = where;
+    if (s === 'dutyPrograms') { if (!C.isDate(x.date) || typeof x.rest !== 'boolean' || !x.photo || typeof x.photo.data !== 'string' || x.photo.data.slice(0,5) !== 'data:') return bad('v_bad_schedule', s, n); if (!x.rest && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(x.start||'') || !/^([01]\d|2[0-3]):[0-5]\d$/.test(x.end||''))) return bad('v_bad_schedule',s,n); return null; }
     if (s === 'work') {
       if (!C.isDate(x.date)) return bad('v_bad_date', s, n, 'date');
       if (typeof x.status !== 'string') return bad('v_bad_status', s, n, 'status');

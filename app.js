@@ -1,10 +1,10 @@
-/* My Salary Tracker v9.2.2 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
+/* My Salary Tracker v9.5.3 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.4.2';
+  var VERSION = '9.5.3';
   var DB_NAME = 'salary-tracker-db';
-  var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts'];
+  var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms'];
   var LEGACY = 'workEntries';
   var SETTINGS_KEY = 'mst-settings';
   var LAST_BACKUP_KEY = 'mst-last-backup';      // ISO time of the last successful 'Export backup' (device only, never inside a backup file)
@@ -12,7 +12,7 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var state = {
-    db: null, data: { work: [], payments: [], expenses: [], remittances: [], gifts: [] },
+    db: null, dbReady: false, dbAttempt: null, data: { work: [], payments: [], expenses: [], remittances: [], gifts: [], dutyPrograms: [] },
     settings: Object.assign({}, C.DEFAULTS), month: new Date(), rtype: 'month', ryear: new Date().getFullYear(),
     edit: null, pending: null, dbError: null, storage: null, updatePending: false, workSelected: null, personSelected: null
   };
@@ -108,7 +108,7 @@
     var s = Object.assign({}, C.DEFAULTS), r = raw && typeof raw === 'object' ? raw : {};
     ['basic', 'standard', 'otRate', 'bus', 'bonus', 'salaryMonthly', 'weeklyDays'].forEach(function (k) { if (r[k] !== undefined && r[k] !== null && r[k] !== '' && Number.isFinite(Number(r[k])) && Number(r[k]) >= 0) s[k] = Number(r[k]); });
     ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { if (typeof r[k] === 'boolean') s[k] = r[k]; }); s.rentEnabled=false;
-    s.salaryMonthly = s.salaryMonthly || 650; s.weeklyDays = Math.max(1, Math.min(7, Math.round(s.weeklyDays || 6))); s.people = Array.isArray(r.people) ? r.people.filter(function(n){return typeof n==='string'&&n.trim();}).map(function(n){return n.trim();}) : ['Sohel','Mim','Ismail','Riyad'];
+    s.salaryMonthly = s.salaryMonthly || 650; s.weeklyDays = Math.max(1, Math.min(7, Math.round(s.weeklyDays || 6))); s.people = Array.isArray(r.people) ? r.people.filter(function(n){return typeof n==='string'&&n.trim();}).map(function(n){return n.trim();}) : [];
     if (I.LANGS.indexOf(r.language) >= 0) s.language = r.language;
     if (['auto', 'light', 'dark'].indexOf(r.theme) >= 0) s.theme = r.theme;
     return s;
@@ -124,12 +124,50 @@
   /* ---------- IndexedDB ---------- */
   function idbOpen(name, version, upgrade) {
     return new Promise(function (res, rej) {
-      var r = version ? indexedDB.open(name, version) : indexedDB.open(name);
-      r.onupgradeneeded = function () { upgrade && upgrade(r.result); };
-      r.onsuccess = function () { res(r.result); };
-      r.onerror = function () { rej(r.error); };
-      r.onblocked = function () { rej(new Error('blocked')); };
+      var r = version ? indexedDB.open(name, version) : indexedDB.open(name), settled = false, blocked = false, timer;
+      function finish(err, db) {
+        if (settled) { if (db) db.close(); return; }
+        settled = true; clearTimeout(timer);
+        if (err) rej(err); else res(db);
+      }
+      r.onupgradeneeded = function () { try { upgrade && upgrade(r.result); } catch (e) { finish(e); } };
+      r.onsuccess = function () { finish(null, r.result); };
+      r.onerror = function () { finish(r.error || new Error('IndexedDB open failed')); };
+      r.onblocked = function () {
+        blocked = true;
+        // Do not leave the app waiting forever if another Safari/Home-Screen instance keeps the DB open.
+        if (!timer) timer = setTimeout(function () { finish(new Error('Database upgrade is blocked by another app tab. Close all My Salary Tracker tabs/apps, then retry.')); }, 15000);
+      };
+      timer = setTimeout(function () { finish(new Error(blocked ? 'Database upgrade is blocked by another app tab. Close all My Salary Tracker tabs/apps, then retry.' : 'Timed out opening local storage. Close other app tabs and retry.')); }, 20000);
     });
+  }
+  function renderDBBanner() {
+    var b = $('dbBanner'), t = $('dbBannerText'), retry = $('dbRetry');
+    if (!b || !t) return;
+    b.hidden = !!state.dbReady;
+    retry.disabled = !!state.dbAttempt;
+    t.textContent = state.dbAttempt ? 'Loading saved data… / আপনার সেভ করা তথ্য লোড হচ্ছে…' : state.dbError ? 'Saved data could not be opened. Close all other My Salary Tracker tabs/apps, then tap Retry. Your saved data has not been deleted. / সেভ করা তথ্য খুলতে সমস্যা হয়েছে। অন্য ট্যাব বন্ধ করে Retry চাপুন। ডাটা মুছে যায়নি।' : 'Loading saved data… / আপনার সেভ করা তথ্য লোড হচ্ছে…';
+  }
+  async function initializeDatabase() {
+    if (state.dbAttempt) return state.dbAttempt;
+    state.dbReady = false; state.dbError = null;
+    state.dbAttempt = (async function () {
+      renderDBBanner();
+      try {
+        if (state.db) { try { state.db.close(); } catch (e) {} state.db = null; }
+        state.db = await openDB();
+        await loadAll(); await migrateLegacy(); await importHistoricalOnce();
+        state.dbReady = true; state.dbError = null;
+        renderDBBanner(); render();
+        return true;
+      } catch (e) {
+        state.dbReady = false; state.dbError = e; if (state.db) { try { state.db.close(); } catch (closeErr) {} } state.db = null;
+        renderDBBanner(); render();
+        toast(M('err_storage', null, ': ' + (e && e.message || e)));
+        return false;
+      } finally { state.dbAttempt = null; renderDBBanner(); }
+    })();
+    return state.dbAttempt;
   }
   function ensureStores(d) { STORES.concat([LEGACY]).forEach(function (s) { if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); }); }
   // Opens the existing database at whatever version it already has (never a lower one, never deletes anything).
@@ -142,14 +180,14 @@
     return d;
   }
   function reqP(req) { return new Promise(function (res, rej) { req.onsuccess = function () { res(req.result); }; req.onerror = function () { rej(req.error); }; }); }
-  function getAll(s) { return reqP(state.db.transaction(s, 'readonly').objectStore(s).getAll()).then(function (r) { return r || []; }); }
+  function getAll(s) { if (!state.db) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); return reqP(state.db.transaction(s, 'readonly').objectStore(s).getAll()).then(function (r) { return r || []; }); }
   function txDone(tx) { return new Promise(function (res, rej) { tx.oncomplete = function () { res(); }; tx.onabort = function () { rej(tx.error || new Error('aborted')); }; tx.onerror = function () { }; }); }
-  function put(s, x) { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).put(x); return txDone(tx); }
+  function put(s, x) { if (!state.db || !state.dbReady) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); try { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).put(x); return txDone(tx); } catch (e) { return Promise.reject(e); } }
   // Work records: the one-record-per-date check and the write happen inside ONE transaction, against the data stored on disk
   // (not the on-screen copy), so a double tap or a second open window can never create a second record for the same day.
   function putWork(rec) {
     return new Promise(function (resolve, reject) {
-      var tx; try { tx = state.db.transaction('work', 'readwrite'); } catch (e) { return reject(e); }
+      var tx; try { if (!state.db) throw new Error('Local database is not ready. Close other app tabs and reload.'); tx = state.db.transaction('work', 'readwrite'); } catch (e) { return reject(e); }
       var os = tx.objectStore('work'), dup = false, rq = os.getAll();
       tx.oncomplete = function () { resolve(); };
       tx.onabort = function () { var err = dup ? new Error('duplicate date') : (tx.error || new Error('aborted')); err.dup = dup; reject(err); };
@@ -161,7 +199,7 @@
       };
     });
   }
-  function del(s, id) { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).delete(id); return txDone(tx); }
+  function del(s, id) { if (!state.db || !state.dbReady) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); try { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).delete(id); return txDone(tx); } catch (e) { return Promise.reject(e); } }
   async function loadAll() { for (var i = 0; i < STORES.length; i++) state.data[STORES[i]] = await getAll(STORES[i]); }
   async function migrateLegacy() {
     try {
@@ -195,12 +233,12 @@
   function fmtRecordDate(x){return x&&x.datePrecision==='month'?fmtMonth(String(x.date||'').slice(0,7)):fmtDate(x&&x.date);}
   function designWords() {
     var maps = {
-      en: {quick:'Quick Actions',work:'Add Work',ot:'Add OT',salary:'Salary',expense:'Expense',remit:'Send Home',gift:'Give Money',balance:'Salary & Expenses',balanceSub:'Income, expenses and savings comparison',recent:'Recent Transactions',add:'Add',home:'Home',money:'Money',saved:'Estimated savings'},
-      bn: {quick:'Quick Actions',work:'কাজ যোগ',ot:'OT যোগ',salary:'বেতন',expense:'খরচ',remit:'পরিবারে পাঠানো',gift:'অন্যদের দেওয়া',balance:'বেতন ও খরচ',balanceSub:'আয়, খরচ ও সঞ্চয়ের তুলনা',recent:'সাম্প্রতিক লেনদেন',add:'যোগ',home:'হোম',money:'টাকা',saved:'আনুমানিক সঞ্চয়'},
-      tr: {quick:'Hızlı İşlemler',work:'İş Ekle',ot:'Mesai Ekle',salary:'Maaş',expense:'Gider',remit:'Aileye Gönder',gift:'Para Ver',balance:'Maaş ve Giderler',balanceSub:'Gelir, gider ve tasarruf karşılaştırması',recent:'Son İşlemler',add:'Ekle',home:'Ana Sayfa',money:'Para',saved:'Tahmini birikim'},
-      bg: {quick:'Бързи действия',work:'Добави работа',ot:'Добави извънредно',salary:'Заплата',expense:'Разход',remit:'Изпрати на семейството',gift:'Дари пари',balance:'Заплата и разходи',balanceSub:'Сравнение на доходи, разходи и спестявания',recent:'Последни транзакции',add:'Добави',home:'Начало',money:'Пари',saved:'Очаквани спестявания'},
-      hi: {quick:'त्वरित कार्रवाइयाँ',work:'काम जोड़ें',ot:'ओटी जोड़ें',salary:'वेतन',expense:'खर्च',remit:'परिवार को भेजें',gift:'पैसे दें',balance:'वेतन और खर्च',balanceSub:'आय, खर्च और बचत की तुलना',recent:'हाल के लेनदेन',add:'जोड़ें',home:'होम',money:'पैसा',saved:'अनुमानित बचत'},
-      el: {quick:'Γρήγορες ενέργειες',work:'Προσθήκη εργασίας',ot:'Προσθήκη υπερωρίας',salary:'Μισθός',expense:'Έξοδο',remit:'Αποστολή στην οικογένεια',gift:'Δωρεά',balance:'Μισθός και έξοδα',balanceSub:'Σύγκριση εσόδων, εξόδων και αποταμίευσης',recent:'Πρόσφατες συναλλαγές',add:'Προσθήκη',home:'Αρχική',money:'Χρήματα',saved:'Εκτιμώμενη αποταμίευση'}
+      en: {quick:'Quick Actions',work:'Add Work',ot:'Add OT',salary:'Salary',expense:'Expense',remit:'Send Home',gift:'Give Money',balance:'Balance',balanceSub:'Income, expenses and savings comparison',recent:'Recent Transactions',add:'Add',home:'Home',money:'Money',saved:'Estimated savings',received:'Received',outgoing:'Out'},
+      bn: {quick:'Quick Actions',work:'কাজ যোগ',ot:'OT যোগ',salary:'বেতন',expense:'খরচ',remit:'পরিবারে পাঠানো',gift:'অন্যদের দেওয়া',balance:'ব্যালেন্স',balanceSub:'আয়, খরচ ও সঞ্চয়ের তুলনা',recent:'সাম্প্রতিক লেনদেন',add:'যোগ',home:'হোম',money:'টাকা',saved:'আনুমানিক সঞ্চয়',received:'পেয়েছি',outgoing:'খরচ'},
+      tr: {quick:'Hızlı İşlemler',work:'İş Ekle',ot:'Mesai Ekle',salary:'Maaş',expense:'Gider',remit:'Aileye Gönder',gift:'Para Ver',balance:'Maaş ve Giderler',balanceSub:'Gelir, gider ve tasarruf karşılaştırması',recent:'Son İşlemler',add:'Ekle',home:'Ana Sayfa',money:'Para',saved:'Tahmini birikim',received:'Alınan',outgoing:'Çıkan'},
+      bg: {quick:'Бързи действия',work:'Добави работа',ot:'Добави извънредно',salary:'Заплата',expense:'Разход',remit:'Изпрати на семейството',gift:'Дари пари',balance:'Заплата и разходи',balanceSub:'Сравнение на доходи, разходи и спестявания',recent:'Последни транзакции',add:'Добави',home:'Начало',money:'Пари',saved:'Очаквани спестявания',received:'Получени',outgoing:'Изходящи'},
+      hi: {quick:'त्वरित कार्रवाइयाँ',work:'काम जोड़ें',ot:'ओटी जोड़ें',salary:'वेतन',expense:'खर्च',remit:'परिवार को भेजें',gift:'पैसे दें',balance:'वेतन और खर्च',balanceSub:'आय, खर्च और बचत की तुलना',recent:'हाल के लेनदेन',add:'जोड़ें',home:'होम',money:'पैसा',saved:'अनुमानित बचत',received:'प्राप्त',outgoing:'खर्च'},
+      el: {quick:'Γρήγορες ενέργειες',work:'Προσθήκη εργασίας',ot:'Προσθήκη υπερωρίας',salary:'Μισθός',expense:'Έξοδο',remit:'Αποστολή στην οικογένεια',gift:'Δωρεά',balance:'Μισθός και έξοδα',balanceSub:'Σύγκριση εσόδων, εξόδων και αποταμίευσης',recent:'Πρόσφατες συναλλαγές',add:'Προσθήκη',home:'Αρχική',money:'Χρήματα',saved:'Εκτιμώμενη αποταμίευση',received:'Ελήφθησαν',outgoing:'Έξοδα'}
     };
     return maps[lang()] || maps.en;
   }
@@ -213,6 +251,7 @@
     $('balanceSummary').querySelector('h3').textContent=w.balance;
     $('balanceSummary').querySelector('.note').textContent=w.balanceSub;
     $('recentCard').querySelector('h3').textContent=w.recent;
+    $('balanceBreakdown').textContent=w.balanceSub+' · '+w.received+': '+money(c.salaryReceived)+' · '+w.outgoing+': '+money(C.num(c.expenses)+C.num(c.remitEur)+C.num(c.giftEur));
     $('balanceMonth').textContent=fmtMonth(viewMonth(),true);
     var income=Math.max(0,C.num(c.salaryReceived)), out=Math.max(0,C.num(c.expenses)+C.num(c.remitEur)+C.num(c.giftEur));
     $('balanceBar').style.width=(income?Math.min(100,out/income*100):0)+'%';
@@ -229,18 +268,7 @@
   function addPersonName(name){name=String(name||'').trim();if(!name)return;state.settings.people=state.settings.people||[];if(!state.settings.people.some(function(n){return n.toLocaleLowerCase()===name.toLocaleLowerCase();})){state.settings.people.push(name);persistSettings();}}
   function renamePerson(oldName){if(!oldName)return;var newName=prompt('নতুন নাম লিখুন',oldName);if(!newName||!newName.trim()||newName.trim()===oldName)return;var target=newName.trim();state.settings.people=(state.settings.people||[]).map(function(n){return n.toLocaleLowerCase()===oldName.toLocaleLowerCase()?target:n;});var list=state.data.gifts.filter(function(g){return String(g.person||'').toLocaleLowerCase()===oldName.toLocaleLowerCase();});Promise.all(list.map(function(g){return put('gifts',Object.assign({},g,{person:target}));})).then(function(){persistSettings();state.personSelected=target;closeDlg('peopleDlg');refresh();toast('নাম আপডেট হয়েছে।');});}
   function readDataUrl(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(){resolve(r.result);};r.onerror=function(){reject(r.error||new Error('file read failed'));};r.readAsDataURL(file);});}
-  async function importHistoricalOnce(){var key='mst-history-import-v1';if(localStorage.getItem(key))return;var entries=[
-    {store:'remittances',id:'historic-remit-2026-08',date:'2026-08-01',datePrecision:'month',recipient:'Family',amount:870,rate:127049/870,fee:0,bonus:0,actualBdt:127049,note:'Historical handoff; day unknown.'},
-    {store:'remittances',id:'historic-remit-2026-09',date:'2026-09-07',recipient:'Family',amount:870,rate:127049/870,fee:0,bonus:0,actualBdt:127049,note:'Historical handoff; actual BDT recorded.'},
-    {store:'remittances',id:'historic-remit-2026-10',date:'2026-10-01',datePrecision:'month',recipient:'Family',amount:600,rate:84870/600,fee:0,bonus:0,actualBdt:84870,note:'Historical handoff; day unknown.'},
-    {store:'remittances',id:'historic-remit-2026-11',date:'2026-11-01',datePrecision:'month',recipient:'Family',amount:820,rate:116128/820,fee:0,bonus:0,actualBdt:116128,note:'Historical handoff; day unknown.'},
-    {store:'gifts',id:'historic-gift-riyad-2026-08-20',date:'2026-08-20',person:'Riyad',currency:'EUR',amount:70,bdtActual:10000,note:'Historical handoff.'},
-    {store:'gifts',id:'historic-gift-sohel-2026-09-15',date:'2026-09-15',person:'Sohel',currency:'BDT',amount:7312,note:'Via Sohel/bKash; final recipient not confirmed.'},
-    {store:'gifts',id:'historic-gift-mim-2026-09-25',date:'2026-09-25',person:'Mim',currency:'BDT',amount:2000,note:'Historical handoff; EUR equivalent unknown.'},
-    {store:'gifts',id:'historic-gift-sohel-2026-09-29',date:'2026-09-29',person:'Sohel',currency:'BDT',amount:4274,note:'Via Sohel/bKash; final recipient not confirmed.'},
-    {store:'gifts',id:'historic-gift-ismail-2026-10-07',date:'2026-10-07',person:'Ismail',currency:'BDT',amount:1000,note:'Historical handoff.'},
-    {store:'gifts',id:'historic-gift-sohel-2026-10-07',date:'2026-10-07',person:'Sohel',currency:'BDT',amount:3783,note:'Historical handoff.'}
-  ];for(var i=0;i<entries.length;i++){var e=entries[i],list=state.data[e.store]||[];if(!list.some(function(x){if(x.id===e.id)return true;if(e.store==='gifts')return x.date===e.date&&String(x.person||'').toLowerCase()===String(e.person||'').toLowerCase()&&String(x.currency||'EUR').toUpperCase()===String(e.currency||'EUR').toUpperCase()&&Number(x.amount)===Number(e.amount)&&Number(x.bdtActual||0)===Number(e.bdtActual||0);return x.date===e.date&&String(x.recipient||'').toLowerCase()===String(e.recipient||'').toLowerCase()&&Number(x.amount)===Number(e.amount)&&Number(x.actualBdt||0)===Number(e.actualBdt||0);})){await put(e.store,e);}}state.settings.people=['Sohel','Mim','Ismail','Riyad'].concat(state.settings.people||[]).filter(function(n,i,a){return a.findIndex(function(x){return x.toLocaleLowerCase()===n.toLocaleLowerCase();})===i;});persistSettings();localStorage.setItem(key,'1');await loadAll();}
+  async function importHistoricalOnce(){ /* Fresh installs start empty. Existing device records are preserved. */ return; }
   function renderWorkCalendar() {
     var m = viewMonth(), y = +m.slice(0,4), mo = +m.slice(5,7)-1, first = new Date(y,mo,1), days = new Date(y,mo+1,0).getDate();
     var start = (first.getDay()+6)%7; // Monday first
@@ -253,17 +281,33 @@
   function personGroups() {var map={};(state.settings.people||[]).forEach(function(name){var k=String(name).toLocaleLowerCase();if(name&&!map[k])map[k]={name:name,eur:0,bdt:0,other:0,count:0,items:[]};});state.data.gifts.forEach(function(g){var name=String(g.person||'').trim();if(!name)return;var k=name.toLocaleLowerCase();if(!map[k])map[k]={name:name,eur:0,bdt:0,other:0,count:0,items:[]};var c=String(g.currency||'EUR').toUpperCase();if(c==='EUR')map[k].eur+=C.num(g.amount);else if(c==='BDT')map[k].bdt+=C.num(g.amount);else {map[k].other+=C.num(g.amount);map[k].currencies=map[k].currencies||{};map[k].currencies[c]=(map[k].currencies[c]||0)+C.num(g.amount);}if(g.bdtActual)map[k].bdt+=C.num(g.bdtActual);map[k].count++;map[k].items.push(g);});return Object.keys(map).map(function(k){return map[k];}).sort(function(a,b){return a.name.localeCompare(b.name);});}
   function renderPeople() {var groups=personGroups(),words={bn:'লেনদেন',en:'transactions',tr:'işlem',bg:'транзакции',hi:'लेन-देन',el:'συναλλαγές'};var word=words[lang()]||words.en;$('peopleList').innerHTML=groups.map(function(g){return '<button type="button" class="person-row" data-person="'+safe(g.name)+'"><strong>'+safe(g.name)+'</strong><span>'+money(g.eur)+' · '+numFmt(g.bdt)+' BDT</span><small>'+g.count+' '+safe(word)+'</small></button>';}).join('')||'<p class="empty">'+safe(tr('r_none'))+'</p>'; $('personDirectory').innerHTML='<p class="note">Saved people (add once, select later)</p>'+groups.map(function(g){return '<div class="directory-row"><span>'+safe(g.name)+'</span><button type="button" data-person-rename="'+safe(g.name)+'">Rename</button></div>';}).join('');}
   function openPerson(name) {var group=personGroups().find(function(g){return g.name.toLocaleLowerCase()===String(name).toLocaleLowerCase();});if(!group)return;state.personSelected=group.name;var extra=group.currencies?Object.keys(group.currencies).map(function(c){return '<div><small>'+safe(c)+' total</small><b>'+safe(numFmt(group.currencies[c]))+'</b></div>';}).join(''):'';$('personTitle').textContent=group.name;$('personProfile').innerHTML='<div class="person-totals"><div><small>EUR total</small><b>'+safe(money(group.eur))+'</b></div><div><small>BDT total</small><b>'+safe(numFmt(group.bdt))+' ৳</b></div><div><small>Transactions</small><b>'+group.count+'</b></div>'+extra+'</div>'+group.items.sort(byDateDesc).map(function(x){return row(fmtDate(x.date),x.note||'',money(x.amount,String(x.currency||'EUR').toUpperCase()),'gifts',x.id);}).join('');openDlg('peopleDlg');}
-  function dutyButtonState(){var b=$('homeQuickDuty'),reason=$('dutyReason'),rec=state.data.work.find(function(x){return x.date===today();}),status=rec?C.normStatus(rec.status):null;b.disabled=!!(rec&&status!=='worked');b.classList.toggle('done',status==='worked');b.classList.toggle('blocked',b.disabled);b.textContent=status==='worked'?'✓ আজকের ডিউটি সম্পন্ন':b.disabled?'আজ ডিউটি নেই / ছুটি':'আজকে ডিউটি করেছি';reason.textContent=b.disabled?('আজকের অবস্থা: '+statusLabel(rec.status)+' — এই অবস্থায় Basic Salary যোগ হবে না।'):status==='worked'?'Basic Salary ইতিমধ্যে যোগ হয়েছে।':'';}
-  function quickBasicDuty() {var dt=today(),existing=state.data.work.find(function(x){return x.date===dt;});if(existing&&C.normStatus(existing.status)==='worked'){toast('আজকের Basic Duty ইতিমধ্যে যোগ করা আছে।');return;}if(existing){toast('আজকের রেকর্ডে '+statusLabel(existing.status)+' আছে। আগে Edit করে Worked করুন।');return;}var rec={id:uid(),date:dt,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,note:''};putWork(rec).then(refresh).then(function(){toast('আজকের Basic Duty ও Basic Salary যোগ হয়েছে।','Undo',function(){del('work',rec.id).then(refresh);});}).catch(function(e){toast(e&&e.dup?'আজকের কাজ আগেই রেকর্ড হয়েছে।':M('err_storage',null,': '+(e.message||e)));});}
+  function dutyButtonState(){var b=$('homeQuickDuty'),reason=$('dutyReason'),rec=state.data.work.find(function(x){return x.date===today();}),status=rec?C.normStatus(rec.status):null;if(!state.dbReady){b.disabled=true;b.classList.remove('done');b.classList.add('blocked');b.textContent='ডাটা লোড না হওয়া পর্যন্ত বন্ধ';reason.textContent='ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।';return;}b.disabled=!!(rec&&status!=='worked');b.classList.toggle('done',status==='worked');b.classList.toggle('blocked',b.disabled);b.textContent=status==='worked'?'✓ আজকের ডিউটি সম্পন্ন':b.disabled?'আজ ডিউটি নেই / ছুটি':'আজকে ডিউটি করেছি';reason.textContent=b.disabled?('আজকের অবস্থা: '+statusLabel(rec.status)+' — এই অবস্থায় Basic Salary যোগ হবে না।'):status==='worked'?'Basic Salary ইতিমধ্যে যোগ হয়েছে।':'';}
+  function quickBasicDuty() {if(!state.dbReady){toast('ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।');return;}var dt=today(),existing=state.data.work.find(function(x){return x.date===dt;});if(existing&&C.normStatus(existing.status)==='worked'){toast('আজকের Basic Duty ইতিমধ্যে যোগ করা আছে।');return;}if(existing){toast('আজকের রেকর্ডে '+statusLabel(existing.status)+' আছে। আগে Edit করে Worked করুন।');return;}var rec={id:uid(),date:dt,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,otExtraHours:0,tips:0,note:''};putWork(rec).then(refresh).then(function(){toast('আজকের Basic Duty ও Basic Salary যোগ হয়েছে।','Undo',function(){del('work',rec.id).then(refresh);});}).catch(function(e){toast(e&&e.dup?'আজকের কাজ আগেই রেকর্ড হয়েছে।':M('err_storage',null,': '+(e.message||e)));});}
 
+  function renderTodayProgram(){
+    var p=(state.data.dutyPrograms||[]).find(function(x){return x.date===today();}),box=$('schedulePeek'),out=$('scheduleToday');
+    if(!p){box.hidden=true;out.textContent='';return;} box.hidden=false;
+    if(p.rest){out.innerHTML='<strong>Rest Day</strong>';return;}
+    var lines=[]; if(p.start&&p.end)lines.push('Duty: '+safe(p.start)+'–'+safe(p.end)); if(Number(p.breakMinutes)>0)lines.push('Break: '+safe(p.breakMinutes)+' min'); if(Number(p.otHours)>0)lines.push('Overtime: '+safe(p.otHours)+' h');
+    out.innerHTML=lines.map(function(x){return '<span>'+x+'</span>';}).join('');
+  }
+  function renderProgramHistory(){var list=(state.data.dutyPrograms||[]).slice().sort(function(a,b){return b.date.localeCompare(a.date);});$('programHistory').innerHTML=list.map(function(p){return '<div class="program-history-row"><div><b>'+safe(p.date)+'</b><small>'+(p.rest?'Rest Day':safe((p.start||'')+'–'+(p.end||''))+' · break '+safe(p.breakMinutes||0)+'m · OT '+safe(p.otHours||0)+'h')+'</small></div><button type="button" data-program-edit="'+safe(p.id)+'">Edit</button></div>';}).join('')||'<small class="muted">No schedule saved yet.</small>';}
+  function openProgram(){if(!state.dbReady){toast('ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।');return;}closeDlg('menu');$('programDate').value=today();$('programPhoto').value='';$('programRest').checked=false;$('programTimes').hidden=false;$('programPreview').textContent='';renderProgramHistory();openDlg('dutyProgramDialog');}
+  async function saveProgram(){if(!state.dbReady){toast('ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।');return;}try{var date=$('programDate').value,old=(state.data.dutyPrograms||[]).find(function(x){return x.date===date;}),rest=$('programRest').checked;if(!C.isDate(date)){toast('Choose a valid date.');return;}if(old&&!confirm('A schedule already exists for this date. Replace it after review?'))return;
+    var photo=old&&old.photo?old.photo:null,file=$('programPhoto').files&&$('programPhoto').files[0];if(file){if(!/^image\//.test(file.type)||file.size>8*1024*1024){toast('Please choose a paper photo up to 8 MB.');return;}photo={name:file.name,type:file.type,data:await readDataUrl(file)};}if(!photo){toast('Please upload the paper schedule photo first.');return;}
+    var rec={id:old?old.id:uid(),date:date,rest:rest,start:rest?'':$('programStart').value,end:rest?'':$('programEnd').value,breakMinutes:rest?0:Number($('programBreak').value||0),otHours:rest?0:Number($('programOt').value||0),photo:photo,confirmedAt:new Date().toISOString()};
+    if(!rest&&(!rec.start||!rec.end)){toast('Enter both duty start and end times.');return;}if(rec.breakMinutes<0||rec.breakMinutes>600||rec.otHours<0||rec.otHours>24){toast('Check break and overtime values.');return;}
+    await put('dutyPrograms',rec);await refresh();renderProgramHistory();toast('Schedule saved on this phone.');}catch(e){toast('Schedule save failed: '+(e&&e.message||e));}}
   function render() {
     var s = state.settings, m = viewMonth(), c = C.calcMonth(state.data, s, m), d = state.data;
     document.documentElement.lang = lang(); applyTheme();
     document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = tr(el.getAttribute('data-t')); });
-    var extras={bn:{quickDutyLabel:'আজকের Basic Duty ১ ক্লিকে যোগ',peopleTitle:'ব্যক্তিভিত্তিক হিসাব',peopleNote:'প্রত্যেকের মোট টাকা ও লেনদেন আলাদা',transactions:'লেনদেন'},en:{quickDutyLabel:'One-tap: record today’s basic duty',peopleTitle:'People & profiles',peopleNote:'Individual totals and transaction history',transactions:'transactions'},tr:{quickDutyLabel:'Bugünün normal mesaisini tek dokunuşla kaydet',peopleTitle:'Kişiler ve profiller',peopleNote:'Kişiye göre toplamlar ve geçmiş',transactions:'işlem'},bg:{quickDutyLabel:'Запиши днешния работен ден с едно докосване',peopleTitle:'Хора и профили',peopleNote:'Суми и история по човек',transactions:'транзакции'},hi:{quickDutyLabel:'आज की सामान्य ड्यूटी एक टैप में दर्ज करें',peopleTitle:'लोग और प्रोफ़ाइल',peopleNote:'व्यक्ति के अनुसार कुल और इतिहास',transactions:'लेन-देन'},el:{quickDutyLabel:'Καταγραφή σημερινής βάρδιας με ένα πάτημα',peopleTitle:'Άτομα και προφίλ',peopleNote:'Σύνολα και ιστορικό ανά άτομο',transactions:'συναλλαγές'}};var ex=extras[lang()]||extras.en;document.querySelector('[data-t=quickDutyLabel]').textContent=ex.quickDutyLabel;document.getElementById('homeQuickDuty').textContent='✅ '+ex.quickDutyLabel;document.querySelectorAll('[data-t=peopleTitle]').forEach(function(el){el.textContent=ex.peopleTitle;});document.querySelector('[data-t=peopleNote]').textContent=ex.peopleNote;
+    var extras={bn:{quickDutyLabel:'আজকের Basic Duty ১ ক্লিকে যোগ',peopleTitle:'ব্যক্তিভিত্তিক হিসাব',peopleNote:'প্রত্যেকের মোট টাকা ও লেনদেন আলাদা',transactions:'লেনদেন'},en:{quickDutyLabel:'One-tap: record today’s basic duty',peopleTitle:'People & profiles',peopleNote:'Individual totals and transaction history',transactions:'transactions'},tr:{quickDutyLabel:'Bugünün normal mesaisini tek dokunuşla kaydet',peopleTitle:'Kişiler ve profiller',peopleNote:'Kişiye göre toplamlar ve geçmiş',transactions:'işlem'},bg:{quickDutyLabel:'Запиши днешния работен ден с едно докосване',peopleTitle:'Хора и профили',peopleNote:'Суми и история по човек',transactions:'транзакции'},hi:{quickDutyLabel:'आज की सामान्य ड्यूटी एक टैप में दर्ज करें',peopleTitle:'लोग और प्रोफ़ाइल',peopleNote:'व्यक्ति के अनुसार कुल और इतिहास',transactions:'लेन-देन'},el:{quickDutyLabel:'Καταγραφή σημερινής βάρδιας με ένα πάτημα',peopleTitle:'Άτομα και προφίλ',peopleNote:'Σύνολα και ιστορικό ανά άτομο',transactions:'συναλλαγές'}};var ex=extras[lang()]||extras.en;var qa={en:['Add Work','Add OT','Salary','Expense','Send Home','Money Given'],bn:['কাজ যোগ','OT যোগ','বেতন','খরচ','পরিবারে পাঠানো','অন্যদের দেওয়া'],tr:['İş ekle','Mesai ekle','Maaş','Gider','Eve para gönder','Para verildi'],bg:['Добави работа','Добави извънреден труд','Заплата','Разход','Изпрати у дома','Дадени пари'],hi:['काम जोड़ें','ओटी जोड़ें','वेतन','खर्च','घर पैसे भेजें','दिए गए पैसे'],el:['Προσθήκη εργασίας','Προσθήκη υπερωρίας','Μισθός','Έξοδο','Αποστολή χρημάτων','Χρήματα που δόθηκαν']}[lang()]||['Add Work','Add OT','Salary','Expense','Send Home','Money Given'];['qa_work','qa_ot','qa_salary','qa_expense','qa_remit','qa_gift'].forEach(function(k,i){document.querySelectorAll('[data-t='+k+']').forEach(function(el){el.textContent=qa[i];});});document.querySelector('[data-t=quickDutyLabel]').textContent=ex.quickDutyLabel;document.getElementById('homeQuickDuty').textContent='✅ '+ex.quickDutyLabel;document.querySelectorAll('[data-t=peopleTitle]').forEach(function(el){el.textContent=ex.peopleTitle;});document.querySelector('[data-t=peopleNote]').textContent=ex.peopleNote;
     $('month').textContent = fmtMonth(m);
     $('clock').setAttribute('aria-label', tr('clock_label')); clockShown = { d: '', t: '' }; tickClock();
-    $('earned').textContent = money(c.earned); $('days').textContent = c.workedDays; $('ot').textContent = numFmt(c.otHours) + ' h';
+    $('earned').textContent = money(c.wages); $('days').textContent = c.workedDays; $('basicDays').textContent = c.workedDays; $('ot').textContent = numFmt(c.otHours) + ' h';
+    var monthTips = d.work.filter(function(x){return String(x.date||'').slice(0,7)===m;}).reduce(function(n,x){return n+C.num(x.tips);},0); $('monthOtIncome').textContent=money(c.otPay); $('monthTipsIncome').textContent=money(monthTips);
+    var todayRec=d.work.find(function(x){return x.date===today();}), todayParts=todayRec?C.dayParts(todayRec,s):{base:0,otHours:0,otPay:0}; var todayTips=todayRec?C.num(todayRec.tips):0, todayTotal=C.r2(todayParts.base+todayParts.otPay+todayTips); $('todayEarnings').textContent=money(todayTotal); $('todayBreakdown').innerHTML='<span>Basic Duty · '+money(todayParts.base)+'</span><span>Overtime · '+numFmt(todayParts.otHours)+' h · '+money(todayParts.otPay)+'</span><span>Tips · '+money(todayTips)+'</span><b>Total · '+money(todayTotal)+'</b>'; renderTodayProgram();
     $('formula').textContent = tr('fml', { basic: numFmt(s.basic), ot: numFmt(s.otRate) });
     $('received').textContent = money(c.salaryReceived); $('incomeLabel').textContent = tr('incomeThisMonth'); $('expTotal').textContent = money(c.expenses);
     $('busLine').textContent = c.busDue > 0
@@ -301,7 +345,11 @@
     $('language').value = lang(); $('theme').value = s.theme;
     $('verLine').textContent = 'My Salary Tracker • ' + tr('ver') + ' ' + VERSION;
     $('aboutText').textContent = tr('about_text'); $('aboutVer').textContent = tr('ver') + ' ' + VERSION;
-    renderBackupUi(); renderReport(); renderDesignSummary(c); refreshMsgs();
+    renderBackupUi(); renderReport(); renderDesignSummary(c); renderDBBanner();
+    ['record','quickDuty','addWork','addPayment','addExpense','addRemit','addGift','addPerson'].forEach(function(id){var el=$(id);if(el)el.disabled=!state.dbReady;});
+    document.querySelectorAll('[data-action]').forEach(function(el){el.disabled=!state.dbReady;});
+    $('menuDutyProgram').disabled=!state.dbReady;
+    refreshMsgs();
   }
 
   /* ---------- reports ---------- */
@@ -407,7 +455,7 @@
   /* ---------- forms ---------- */
   var NUM = { step: '0.01', min: '0' };
   var FIELDS = {
-    work: [['date', 'f_date', 'date', 1], ['status', 'f_status', 'status', 1], ['hours', 'f_hours', 'number', 0, { step: '0.25', min: '0', max: '24' }]],
+    work: [['date', 'f_date', 'date', 1], ['status', 'f_status', 'status', 1], ['hours', 'f_hours', 'number', 0, { step: '0.25', min: '0', max: '24' }], ['otExtraHours', 'Overtime hours', 'number', 0, { step: '0.25', min: '0', max: '24' }], ['tips', 'Tips (€)', 'number', 0, { step: '0.01', min: '0' }]],
     payments: [['date', 'f_payDate', 'date', 1], ['month', 'f_salaryMonth', 'month', 1], ['amount', 'f_amountRecv', 'number', 1, NUM], ['bus', 'f_bus', 'number', 0, NUM], ['note', 'f_note', 'text', 0]],
     expenses: [['date', 'f_date', 'date', 1], ['category', 'f_category', 'category', 1], ['amount', 'f_amount', 'number', 1, NUM], ['note', 'f_note', 'text', 0]],
     remittances: [['date', 'f_date', 'date', 1], ['recipient', 'f_recipient', 'text', 1], ['amount', 'f_sent', 'number', 1, NUM], ['rate', 'f_rate', 'number', 1, { step: '0.0001', min: '0' }], ['fee', 'f_fee', 'number', 0, NUM], ['bonus', 'f_bonus', 'number', 0, { step: '0.1', min: '0' }], ['actualBdt', 'f_actualBdt', 'number', 0, NUM], ['note', 'f_note', 'text', 0]],
@@ -415,13 +463,14 @@
   };
   function defaultDate() { var t = today(); return t.slice(0, 7) === viewMonth() ? t : viewMonth() + '-01'; }
   function openForm(kind, old) {
+    if (!state.dbReady) { toast('ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।'); return; }
     closeWorkCalendar(); // Opening OT/work/money forms must never auto-show the calendar.
     old = old || {}; state.edit = { kind: kind, id: old.id === undefined ? null : old.id }; setMsg('formErr', null);
     $('dlgTitle').textContent = tr((old.id ? 'edit_' : 'add_') + kind);
     var box = $('fields'); box.innerHTML = '';
     FIELDS[kind].forEach(function (f) {
       var key = f[0], type = f[2], wrap = document.createElement('label'), span = document.createElement('span'), input;
-      span.textContent = tr(f[1]); wrap.appendChild(span);
+      span.textContent = tr(f[1]); wrap.appendChild(span); if(kind==='work'&&key==='hours') wrap.setAttribute('data-work-hours-field','');
       var val = old[key];
       if (type === 'status' || type === 'category' || type === 'currency' || (kind==='gifts'&&key==='person')) {
         input = document.createElement('select');
@@ -435,12 +484,12 @@
       } else {
         input = document.createElement('input'); input.type = type;
         if (type === 'number') { input.inputMode = 'decimal'; var a = f[4] || {}; Object.keys(a).forEach(function (n) { input.setAttribute(n, a[n]); }); }
-        if (val == null) val = { date: defaultDate(), month: viewMonth(), hours: 8, bonus: state.settings.bonus, fee: 0, bus: 0 }[key]; if (val == null || (type === 'number' && val === null)) val = '';
+        if (val == null) val = { date: defaultDate(), month: viewMonth(), hours: 8, otExtraHours: 0, tips: 0, bonus: state.settings.bonus, fee: 0, bus: 0 }[key]; if (val == null || (type === 'number' && val === null)) val = '';
       }
       input.name = key; input.value = val; if (f[3]) input.required = true;
       wrap.appendChild(input); box.appendChild(wrap);
     });
-    if(['payments','expenses','remittances','gifts'].indexOf(kind)>=0){var rw=document.createElement('div');rw.className='receipt-field';var rs=document.createElement('span');rs.textContent='Optional receipt (photo/PDF, max 5 MB)';rw.appendChild(rs);var fi=document.createElement('input');fi.type='file';fi.name='receiptFile';fi.accept='image/*,application/pdf';rw.appendChild(fi);if(old.receipt){var details=document.createElement('details');details.innerHTML='<summary>Current receipt</summary>'+(String(old.receipt.type||'').indexOf('image/')===0?'<img class="receipt-preview" src="'+safe(old.receipt.data)+'" alt="Current receipt">':'<a href="'+safe(old.receipt.data)+'" target="_blank" rel="noopener">Open current file</a>');rw.appendChild(details);var rm=document.createElement('label');rm.className='check';var chk=document.createElement('input');chk.type='checkbox';chk.name='removeReceipt';var tx=document.createElement('span');tx.textContent='Remove current receipt';rm.appendChild(chk);rm.appendChild(tx);rw.appendChild(rm);}box.appendChild(rw);} $('deleteBtn').hidden = old.id === undefined; openDlg('editDialog');
+    if(['payments','expenses','remittances','gifts'].indexOf(kind)>=0){var rw=document.createElement('div');rw.className='receipt-field';var rs=document.createElement('span');rs.textContent='Optional receipt (photo/PDF, max 5 MB)';rw.appendChild(rs);var fi=document.createElement('input');fi.type='file';fi.name='receiptFile';fi.accept='image/*,application/pdf';rw.appendChild(fi);if(old.receipt){var details=document.createElement('details');details.innerHTML='<summary>Current receipt</summary>'+(String(old.receipt.type||'').indexOf('image/')===0?'<img class="receipt-preview" src="'+safe(old.receipt.data)+'" alt="Current receipt">':'<a href="'+safe(old.receipt.data)+'" target="_blank" rel="noopener">Open current file</a>');rw.appendChild(details);var rm=document.createElement('label');rm.className='check';var chk=document.createElement('input');chk.type='checkbox';chk.name='removeReceipt';var tx=document.createElement('span');tx.textContent='Remove current receipt';rm.appendChild(chk);rm.appendChild(tx);rw.appendChild(rm);}box.appendChild(rw);} if(kind==='work'){var statusEl=box.querySelector('[name=status]'),hoursWrap=box.querySelector('[data-work-hours-field]');function toggleHours(){if(hoursWrap)hoursWrap.hidden=!statusEl||statusEl.value!=='worked';}if(statusEl)statusEl.addEventListener('change',toggleHours);toggleHours();} $('deleteBtn').hidden = old.id === undefined; openDlg('editDialog');
   }
   function formVal(name) { var el = $('fields').querySelector('[name="' + name + '"]'); return el ? el.value.trim() : ''; }
   function numOrNull(v) { if (v === '') return null; var n = Number(v); return Number.isFinite(n) ? n : NaN; }
@@ -458,7 +507,7 @@
     if (!C.isDate(v.date)) return fail('err_date');
     if (kind === 'work') {
       var worked = v.status === 'worked';
-      if (worked) { if (v.hours === null || Number.isNaN(v.hours) || v.hours < 0 || v.hours > 24) return fail('err_hours'); } else v.hours = 0;
+      if (worked) { if (v.hours === null || Number.isNaN(v.hours) || v.hours < 0 || v.hours > 24) return fail('err_hours'); } else v.hours = 0; if (v.otExtraHours === null) v.otExtraHours = 0; if (!Number.isFinite(v.otExtraHours) || v.otExtraHours < 0 || v.otExtraHours > 24) return fail('err_hours'); if (v.tips === null) v.tips = 0; if (!Number.isFinite(v.tips) || v.tips < 0 || v.tips > 100000) return fail('err_amount');
       if (state.data.work.some(function (x) { return x.date === v.date && x.id !== old.id; })) return fail('err_dup');
     } else {
       if (!(v.amount > 0)) return fail('err_amount');
@@ -646,7 +695,7 @@
         st.persisted = sg.persisted ? !!(await sg.persisted()) : false;
         if (!st.persisted && sg.persist) st.persisted = !!(await sg.persist());
       }
-      if (sg && sg.estimate) { var e = await sg.estimate(); st.usage = e.usage; st.quota = e.quota; }
+      if (sg && sg.estimate) { var e = await sg.estimate(); st.usage = e && e.usage != null ? e.usage : null; st.quota = e && e.quota != null ? e.quota : null; }
     } catch (e) { }
     state.storage = st;
   }
@@ -689,12 +738,12 @@
 
   /* ---------- events ---------- */
   function bind() {
-    $('menuBtn').onclick = function () { openDlg('menu'); };
+    $('menuBtn').onclick = function () { openDlg('menu'); }; $('menuDutyProgram').onclick=openProgram; $('saveProgram').onclick=saveProgram; $('dbRetry').onclick=function(){initializeDatabase();}; $('balanceDetails').onclick=function(){switchView('reports');}; $('recentDetails').onclick=function(){switchView('money');}; $('programRest').onchange=function(){ $('programTimes').hidden=this.checked; }; $('programHistory').addEventListener('click',function(e){var b=e.target.closest('[data-program-edit]');if(!b)return;var p=state.data.dutyPrograms.find(function(x){return x.id===b.getAttribute('data-program-edit');});if(!p)return;$('programDate').value=p.date;$('programRest').checked=!!p.rest;$('programTimes').hidden=!!p.rest;$('programStart').value=p.start||'';$('programEnd').value=p.end||'';$('programBreak').value=p.breakMinutes||0;$('programOt').value=p.otHours||0;$('programPreview').textContent='Existing photo: '+(p.photo&&p.photo.name||'saved');});
     $('menuUpdate').onclick=function(){closeDlg('menu');if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){navigator.serviceWorker.getRegistration().then(function(reg){if(reg)reg.update().catch(function(){});toast('Update check started. If an update is available, the app will prompt you.');}).catch(function(){toast('Could not check for updates.');});}else{toast('Update check is not supported in this browser.');}};$('privacyBtn').onclick=function(){closeDlg('menu');openDlg('privacyDlg');};
     document.querySelectorAll('[data-money-jump]').forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-money-jump');document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});};});
     document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'||id==='language'?'settings':id==='work'?'work':'money');if(id==='people'||id==='backupSec'||id==='gifts'||id==='language'||id==='export')setTimeout(function(){var target=id==='language'?'settings':id==='export'?'backupSec':id;document.getElementById(target).scrollIntoView({behavior:'smooth',block:'start'});if(id==='language')document.getElementById('language').focus();},80); }; });
     $('aboutBtn').onclick = function () { closeDlg('menu'); openDlg('aboutDlg'); };
-    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot'){var old=state.data.work.find(function(x){return x.date===today();});openForm('work',old?Object.assign({},old,{status:'worked',hours:(C.normStatus(old.status)==='worked'?C.num(old.hours):state.settings.standard)+1}):{date:today(),status:'worked',hours:state.settings.standard+1});}else openForm(k);};});
+    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot'){var old=state.data.work.find(function(x){return x.date===today();});var baseHours=old&&C.normStatus(old.status)==='worked'?Math.min(state.settings.standard,C.num(old.hours)):state.settings.standard;var priorOt=old?(old.otExtraHours!==undefined?C.num(old.otExtraHours):Math.max(0,C.num(old.hours)-state.settings.standard)):0;openForm('work',old?Object.assign({},old,{status:'worked',hours:baseHours,otExtraHours:priorOt+1}):{date:today(),status:'worked',hours:state.settings.standard,otExtraHours:1});}else openForm(k);};});
     document.querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){var target=b.getAttribute('data-nav');if(target==='quickActions'){openDlg('quickAddDialog');return;}switchView(target==='top'?'home':target==='work'?'work':target==='payments'?'money':target==='reports'?'reports':'home');};});
     document.addEventListener('click', function (e) {
       var cl = e.target.closest('.closeDlg'); if (cl) { var dd = cl.closest('dialog'); if (dd) { if (dd.close) dd.close(); else dd.removeAttribute('open'); } return; }
@@ -706,7 +755,7 @@
     $('quickDuty').onclick = quickBasicDuty; $('homeQuickDuty').onclick=quickBasicDuty;
     $('calendarToggle').onclick=function(){var panel=$('calendarPanel'),btn=$('calendarToggle'),open=panel.hidden;panel.hidden=!open;btn.setAttribute('aria-expanded',open?'true':'false');btn.textContent=tr(open?'hideCalendar':'showCalendar');};
     $('workPrev').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()-1,1);render();};$('workNext').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()+1,1);render();};
-    $('workCalendar').addEventListener('click',function(e){var b=e.target.closest('[data-cal-date]');if(!b)return;var dt=b.getAttribute('data-cal-date'),rec=state.data.work.find(function(x){return x.date===dt;});if(rec)openForm('work',rec);else openForm('work',{date:dt,status:'worked',hours:state.settings.standard});});
+    $('workCalendar').addEventListener('click',function(e){var b=e.target.closest('[data-cal-date]');if(!b)return;var dt=b.getAttribute('data-cal-date'),rec=state.data.work.find(function(x){return x.date===dt;});if(rec)openForm('work',rec);else openForm('work',{date:dt,status:'worked',hours:state.settings.standard,otExtraHours:0});});
     $('peopleList').addEventListener('click',function(e){var b=e.target.closest('[data-person]');if(b)openPerson(b.getAttribute('data-person'));});
     $('addPerson').onclick=function(){var name=prompt('নতুন ব্যক্তির নাম লিখুন।');if(name&&name.trim()){addPersonName(name.trim());renderPeople();openForm('gifts',{date:defaultDate(),person:name.trim(),currency:'EUR'});}};
     $('renamePerson').onclick=function(){renamePerson(state.personSelected);}; $('personDirectory').addEventListener('click',function(e){var b=e.target.closest('[data-person-rename]');if(b)renamePerson(b.getAttribute('data-person-rename'));});
@@ -750,10 +799,9 @@
 
   /* ---------- start ---------- */
   async function init() {
-    loadSettings(); applyTheme(); bind(); render(); startClock();
+    loadSettings(); applyTheme(); bind(); render(); renderDBBanner(); startClock();
     document.addEventListener('visibilitychange', function () { if (document.hidden) stopClock(); else startClock(); });
-    try { state.db = await openDB(); await loadAll(); await migrateLegacy(); await importHistoricalOnce(); }
-    catch (e) { state.dbError = e; toast(M('err_storage', null, ': ' + (e && e.message || e))); }
+    await initializeDatabase();
     render();
     initStorage().then(function () { renderBackupUi(); });
     if ('serviceWorker' in navigator) {

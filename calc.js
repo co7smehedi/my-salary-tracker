@@ -42,8 +42,16 @@
     if (w && w.otRate !== undefined && Number.isFinite(Number(w.otRate))) s.otRate = Number(w.otRate);
     var status = normStatus(w && w.status), base = 0, otHours = 0, otPay = 0;
     if (status === 'worked') {
-      base = num(s.basic);
-      otHours = Math.max(0, num(w.hours) - num(s.standard));
+      // New records can track basic hours and overtime separately. Legacy records
+      // without otExtraHours retain their original total-hours interpretation.
+      if (w && w.otExtraHours !== undefined) {
+        var basicHours = Math.min(num(s.standard), num(w.hours));
+        base = num(s.standard) > 0 ? (basicHours / num(s.standard)) * num(s.basic) : 0;
+        otHours = num(w.otExtraHours) + Math.max(0, num(w.hours) - num(s.standard));
+      } else {
+        base = num(s.basic);
+        otHours = Math.max(0, num(w.hours) - num(s.standard));
+      }
       otPay = otHours * num(s.otRate);
     } else if (status === 'paid_leave' && s.paidLeave) base = num(s.basic);
     else if (status === 'holiday' && s.paidHoliday) base = num(s.basic);
@@ -71,7 +79,7 @@
     var e = (data.expenses || []).filter(function (x) { return String(x.date || '').slice(0, 7) === m; });
     var r = (data.remittances || []).filter(function (x) { return String(x.date || '').slice(0, 7) === m; });
     var g = (data.gifts || []).filter(function (x) { return String(x.date || '').slice(0, 7) === m; });
-    var out = { month: m, workedDays: 0, hoursWorked: 0, restDays: 0, paidLeaveDays: 0, holidayDays: 0, sickDays: 0, unpaidLeaveDays: 0, otHours: 0, wages: 0, otPay: 0, earned: 0, busDue: 0, busReceived: 0,
+    var out = { month: m, tips: 0, workedDays: 0, hoursWorked: 0, restDays: 0, paidLeaveDays: 0, holidayDays: 0, sickDays: 0, unpaidLeaveDays: 0, otHours: 0, wages: 0, otPay: 0, earned: 0, busDue: 0, busReceived: 0,
       paymentsTotal: 0, salaryReceived: 0, outstanding: 0, overpaid: 0,
       busOutstanding: 0, busStatus: 'notdue', expenses: 0, rentExcluded: 0, remitEur: 0, remitFee: 0, remitBonusEur: 0, remitBdt: 0, giftEur: 0, giftBdt: 0, giftOther: 0, balance: 0,
       counts: { work: w.length, payments: p.length, expenses: e.length, remittances: r.length, gifts: g.length } };
@@ -80,10 +88,10 @@
       if (d.status === 'worked') { out.workedDays++; out.otHours += d.otHours; out.hoursWorked += num(x.hours); }
       else if (d.status === 'rest') out.restDays++; else if (d.status === 'paid_leave') out.paidLeaveDays++; else if (d.status === 'holiday') out.holidayDays++;
       else if (d.status === 'sick_leave') out.sickDays++; else if (d.status === 'unpaid_leave') out.unpaidLeaveDays++;
-      out.wages += d.base; out.otPay += d.otPay;
+      out.wages += d.base; out.otPay += d.otPay; out.tips += num(x.tips);
     });
     out.hoursWorked = r2(out.hoursWorked);
-    out.wages = r2(out.wages); out.otPay = r2(out.otPay); out.otHours = r2(out.otHours);
+    out.wages = r2(out.wages); out.otPay = r2(out.otPay); out.otHours = r2(out.otHours); out.tips = r2(out.tips);
     out.earned = r2(out.wages + out.otPay);
     var busRate = s.bus; var snapshotWork = w.slice().sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));}).find(function(x){return x.busAllowanceRate!==undefined&&Number.isFinite(Number(x.busAllowanceRate));}); if(snapshotWork)busRate=Number(snapshotWork.busAllowanceRate); out.busDue = out.workedDays > 0 ? r2(busRate) : 0;
     p.forEach(function (x) { var a = num(x.amount), b = Math.min(Math.max(0, num(x.bus)), a); out.paymentsTotal += a; out.busReceived += b; });
@@ -113,7 +121,7 @@
   }
 
   function sum(list) {
-    var keys = ['workedDays', 'hoursWorked', 'restDays', 'paidLeaveDays', 'holidayDays', 'sickDays', 'unpaidLeaveDays', 'otHours', 'wages', 'otPay', 'earned', 'busDue', 'busReceived', 'busOutstanding', 'paymentsTotal', 'salaryReceived', 'outstanding', 'overpaid', 'expenses', 'rentExcluded', 'remitEur', 'remitFee', 'remitBonusEur', 'remitBdt', 'giftEur', 'giftBdt', 'giftOther', 'balance'];
+    var keys = ['workedDays', 'hoursWorked', 'restDays', 'paidLeaveDays', 'holidayDays', 'sickDays', 'unpaidLeaveDays', 'otHours', 'wages', 'otPay', 'tips', 'earned', 'busDue', 'busReceived', 'busOutstanding', 'paymentsTotal', 'salaryReceived', 'outstanding', 'overpaid', 'expenses', 'rentExcluded', 'remitEur', 'remitFee', 'remitBonusEur', 'remitBdt', 'giftEur', 'giftBdt', 'giftOther', 'balance'];
     var t = {}; keys.forEach(function (k) { t[k] = 0; });
     list.forEach(function (c) { keys.forEach(function (k) { t[k] += c[k]; }); });
     keys.forEach(function (k) { t[k] = r2(t[k]); });

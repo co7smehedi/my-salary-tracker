@@ -33,9 +33,9 @@ test('Receipt attachment is optional, locally stored and expandable',()=>{assert
 test('Fresh installs contain no hard-coded personal transaction records',()=>{assert(!app.includes('historic-remit-2026-08'));assert(!app.includes('historic-gift-sohel-2026-09-15'));assert(app.includes('Fresh installs start empty'));});
 test('Compact UI and sticky header rules present',()=>{assert(css.includes('header{position:sticky'));assert(css.includes('.duty-toggle.done'));});
 test('No Rent setting is exposed in settings',()=>{assert(!html.includes('id="rentEnabled"'))});
-test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.5.2'"));assert(sw.includes("VERSION = '9.5.2'"))});
+test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.5.3'"));assert(sw.includes("VERSION = '9.5.3'"))});
 test('Today duty section is positioned immediately before Quick Actions',()=>{const duty=html.indexOf('class="card duty-card"'),quick=html.indexOf('id="quickActions"');assert(duty>=0&&quick>=0&&duty<quick);assert(quick-duty<600);});
-test('Opening any edit form closes the calendar instead of auto-showing it',()=>{assert(app.includes('function openForm(kind, old) {\n    closeWorkCalendar();'));assert(html.includes('id="calendarPanel" hidden'));});
+test('Opening any edit form closes the calendar instead of auto-showing it',()=>{assert(app.includes('function openForm(kind, old) {\n    if (!state.dbReady'));assert(app.includes('closeWorkCalendar();'));assert(html.includes('id="calendarPanel" hidden'));});
 test('CSS is structurally balanced',()=>{assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length)});
 test('Partial basic hours are paid proportionally',()=>{const d=C.dayParts({status:'worked',hours:4,otExtraHours:0},C.DEFAULTS);assert.equal(d.base,12.5);assert.equal(d.total,12.5)});
 test('Separate manual overtime and tips are calculated',()=>{const d=C.dayParts({status:'worked',hours:4,otExtraHours:2,tips:3},C.DEFAULTS);assert.equal(d.base,12.5);assert.equal(d.otPay,5.54);assert.equal(C.r2(d.base+d.otPay+3),21.04)});
@@ -45,6 +45,8 @@ test('Camera and Photo Library picker enabled without camera-only capture',()=>{
 test('Quick Action labels translated in all supported languages',()=>{assert(app.includes("['qa_work','qa_ot','qa_salary','qa_expense','qa_remit','qa_gift']"));assert(app.includes("bn:['কাজ যোগ','OT যোগ'"));});
 test('Duty hours field hidden when status is not worked',()=>{assert(app.includes("data-work-hours-field"));assert(app.includes("statusEl.value!=='worked'"));});
 test('Storage usage/quota null values handled safely',()=>{assert(app.includes("e && e.usage != null ? e.usage : null"));assert(app.includes("e && e.quota != null ? e.quota : null"));});
-test('IndexedDB blocked upgrade does not prematurely reject',()=>{assert(app.includes('wait for success/error'));});
-test('Database writes guard missing connection with readable error',()=>{assert(app.includes('Local database is not ready. Close other app tabs and reload.'));});
+test('IndexedDB blocked upgrade has a finite timeout and closes late connections',()=>{assert(app.includes('Database upgrade is blocked by another app tab'));assert(app.includes('if (settled) { if (db) db.close(); return; }'));});
+test('Database writes guard missing connection with readable error',()=>{assert(app.includes('Local database is not ready. Retry database connection.'));});
+test('Database startup has a visible Retry banner and blocks writes until ready',()=>{assert(html.includes('id=\"dbBanner\"'));assert(html.includes('id=\"dbRetry\"'));assert(app.includes('state.dbReady = false'));assert(app.includes('initializeDatabase'));assert(app.includes('Database upgrade is blocked by another app tab'));});
+test('Balance and Recent panels now have working detail navigation and populated summaries',()=>{assert(html.includes('id=\"balanceDetails\"'));assert(html.includes('id=\"recentDetails\"'));assert(app.includes("switchView('reports')"));assert(app.includes("switchView('money')"));assert(app.includes('balanceBreakdown'));});
 console.log(`\n${tests}/${tests} checks passed.`);
