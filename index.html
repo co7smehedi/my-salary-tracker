@@ -21,11 +21,8 @@
 <div id="backupBanner" class="banner" role="status" hidden><p id="bannerText"></p><div class="actions"><button id="bannerExport" type="button" class="primary" data-t="b_banner_btn">Export backup now</button><button id="bannerLater" type="button" class="secondary" data-t="b_banner_later">Remind me tomorrow</button></div></div>
 <div class="month"><button id="prev" aria-label="Previous month">‹</button><strong id="month" aria-live="polite"></strong><button id="next" aria-label="Next month">›</button></div>
 
-<section class="card hero" aria-labelledby="earnedLbl"><div class="label" id="earnedLbl">This Month's Basic Income</div><h2 id="earned">€0.00</h2>
-<div class="stats"><div><small data-t="worked">Worked days</small><b id="days">0</b></div><div><small>Basic duty</small><b id="basicDays">0</b></div></div><p class="note" id="formula"></p></section>
-<section class="card earnings-today"><div class="label">Today's Earnings</div><strong id="todayEarnings">€0.00</strong><div class="earning-lines" id="todayBreakdown"></div></section>
-<section class="card extra-income"><div class="label">This Month's Extra Income</div><div class="extra-grid"><div><small>Overtime</small><b id="monthOtIncome">€0.00</b></div><div><small>Tips</small><b id="monthTipsIncome">€0.00</b></div></div></section>
-<section class="card schedule-peek" id="schedulePeek" hidden><div class="label">Today's scheduled duty</div><div id="scheduleToday"></div></section>
+<section class="card hero" aria-labelledby="earnedLbl"><div class="label" id="earnedLbl" data-t="earned">Earned this month</div><h2 id="earned">€0.00</h2>
+<div class="stats"><div><small data-t="worked">Worked days</small><b id="days">0</b></div><div><small data-t="ot">Overtime</small><b id="ot">0 h</b></div></div><p class="note" id="formula"></p></section>
 
 <div class="tiles">
 <div class="income-compact" aria-live="off"><small id="incomeLabel">This month's income</small><b id="received">€0</b></div>
@@ -102,7 +99,7 @@
 <button type="button" data-target="people">👥 <span data-t="peopleTitle">People &amp; profiles</span></button>
 <button type="button" data-target="gifts">🎁 <span data-t="given">Money given</span></button>
 <button type="button" data-target="backupSec">⇅ <span data-t="backupSec">Backup &amp; restore</span></button>
-<button type="button" id="menuDutyProgram">📅 <span>Monday Duty Program</span></button><button type="button" id="menuUpdate">🔄 <span>App Update</span></button>
+<button type="button" id="menuUpdate">🔄 <span>App Update</span></button>
 <button type="button" data-target="language">🌐 <span>Language</span></button>
 <button type="button" id="privacyBtn">🔒 <span>Privacy &amp; Security</span></button>
 <button type="button" data-target="export">📤 <span>Export Data</span></button>
@@ -110,12 +107,6 @@
 <button type="button" id="aboutBtn">ⓘ <span data-t="m_about">About</span></button></div>
 <button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
 
-<dialog id="dutyProgramDialog"><div class="dlg"><h3>Monday Duty Program</h3><p class="muted">Upload a paper schedule photo. The photo and confirmed schedule are saved on this phone only. Review and enter the details manually; no cloud OCR is used.</p>
-<label class="program-file"><span>Paper schedule photo (Camera or Photo Library)</span><input id="programPhoto" type="file" accept="image/*"></label>
-<label><span>Duty date</span><input id="programDate" type="date"></label>
-<label class="check"><input id="programRest" type="checkbox"><span>Rest Day</span></label>
-<div id="programTimes"><label><span>Start time</span><input id="programStart" type="time"></label><label><span>End time</span><input id="programEnd" type="time"></label><label><span>Break (minutes)</span><input id="programBreak" type="number" min="0" max="600" step="5" value="60"></label><label><span>Overtime (hours, if scheduled)</span><input id="programOt" type="number" min="0" max="24" step="0.25" value="0"></label></div>
-<p id="programPreview" class="muted"></p><div class="dialog-actions"><button id="saveProgram" class="primary" type="button">Confirm &amp; Save</button><button class="secondary closeDlg" type="button">Close</button></div><h4>Schedule History</h4><div id="programHistory"></div></div></dialog>
 <dialog id="quickAddDialog"><div class="dlg"><h3 data-t="add">Add</h3><div class="quick-grid">
 <button type="button" class="quick" data-action="work"><span>🛠️</span><b data-t="qa_work">Add work</b></button>
 <button type="button" class="quick" data-action="ot"><span>⏱️</span><b data-t="qa_ot">Add OT</b></button>
