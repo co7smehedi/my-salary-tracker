@@ -1,8 +1,8 @@
-/* My Salary Tracker v9.5.3 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
+/* My Salary Tracker v9.5.4 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.5.3';
+  var VERSION = '9.5.4';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms'];
   var LEGACY = 'workEntries';
@@ -141,12 +141,30 @@
       timer = setTimeout(function () { finish(new Error(blocked ? 'Database upgrade is blocked by another app tab. Close all My Salary Tracker tabs/apps, then retry.' : 'Timed out opening local storage. Close other app tabs and retry.')); }, 20000);
     });
   }
+  // A rendering bug must never be reported as a database failure and must never stop startup.
+  function safeRender() { try { render(); state.renderError = null; return true; } catch (e) { state.renderError = e; try { console.error('render failed', e); } catch (x) {} showFatal('Screen error', e); return false; } }
+  function errInfo(e) { var n = (e && e.name) || 'Error', m = (e && e.message) || String(e || ''); return n + ': ' + m; }
+  function errCategory(e) {
+    var n = (e && e.name) || '', m = String((e && e.message) || '');
+    if (/blocked/i.test(m)) return 'BLOCKED';
+    if (/timed out/i.test(m)) return 'TIMEOUT';
+    if (n === 'QuotaExceededError') return 'QUOTA';
+    if (n === 'InvalidStateError') return 'CONNECTION_CLOSED';
+    if (n === 'VersionError') return 'VERSION';
+    if (n === 'NotFoundError') return 'MISSING_STORE';
+    if (n === 'SecurityError' || /denied|private|not allowed/i.test(m)) return 'STORAGE_DENIED';
+    if (n === 'UnknownError' || /backing store|internal error/i.test(m)) return 'BROWSER_STORAGE_ERROR';
+    return 'OTHER';
+  }
+  function showFatal(label, e) { var b = $('dbBanner'), t = $('dbBannerText'); if (!b || !t) return; b.hidden = false; t.textContent = label + ' [' + errCategory(e) + '] ' + errInfo(e) + ' — Saved data has not been deleted. / ডাটা মুছে যায়নি।'; }
   function renderDBBanner() {
     var b = $('dbBanner'), t = $('dbBannerText'), retry = $('dbRetry');
     if (!b || !t) return;
+    if (state.dbReady && state.renderError) { showFatal('Screen error', state.renderError); retry.disabled = false; return; }
     b.hidden = !!state.dbReady;
     retry.disabled = !!state.dbAttempt;
-    t.textContent = state.dbAttempt ? 'Loading saved data… / আপনার সেভ করা তথ্য লোড হচ্ছে…' : state.dbError ? 'Saved data could not be opened. Close all other My Salary Tracker tabs/apps, then tap Retry. Your saved data has not been deleted. / সেভ করা তথ্য খুলতে সমস্যা হয়েছে। অন্য ট্যাব বন্ধ করে Retry চাপুন। ডাটা মুছে যায়নি।' : 'Loading saved data… / আপনার সেভ করা তথ্য লোড হচ্ছে…';
+    var hint = { BLOCKED: 'Another app window keeps the database busy. Fully close the Home Screen app and every Safari tab of this app, then tap Retry.', TIMEOUT: 'Opening took too long. Close other app windows, then tap Retry.', QUOTA: 'Phone storage is full. Free some space, then tap Retry.', CONNECTION_CLOSED: 'The browser closed the database connection. Tap Retry.', STORAGE_DENIED: 'The browser refused storage. Private Browsing blocks saving; open the app normally.', BROWSER_STORAGE_ERROR: 'The browser storage reported an internal error. Fully close the app, reopen it, tap Retry.' };
+    t.textContent = state.dbAttempt ? 'Loading saved data… / আপনার সেভ করা তথ্য লোড হচ্ছে…' : state.dbError ? 'Saved data could not be opened [' + errCategory(state.dbError) + '] ' + errInfo(state.dbError) + '. ' + (hint[errCategory(state.dbError)] || 'Tap Retry.') + ' Your saved data has not been deleted. / সেভ করা তথ্য খুলতে সমস্যা হয়েছে। ডাটা মুছে যায়নি।' : 'Loading saved data… / আপনার সেভ করা তথ্য লোড হচ্ছে…';
   }
   async function initializeDatabase() {
     if (state.dbAttempt) return state.dbAttempt;
@@ -158,12 +176,12 @@
         state.db = await openDB();
         await loadAll(); await migrateLegacy(); await importHistoricalOnce();
         state.dbReady = true; state.dbError = null;
-        renderDBBanner(); render();
+        renderDBBanner(); safeRender();
         return true;
       } catch (e) {
         state.dbReady = false; state.dbError = e; if (state.db) { try { state.db.close(); } catch (closeErr) {} } state.db = null;
-        renderDBBanner(); render();
-        toast(M('err_storage', null, ': ' + (e && e.message || e)));
+        renderDBBanner(); safeRender();
+        toast(M('err_storage', null, ': [' + errCategory(e) + '] ' + errInfo(e)));
         return false;
       } finally { state.dbAttempt = null; renderDBBanner(); }
     })();
@@ -176,16 +194,27 @@
     var d = await idbOpen(DB_NAME, 0, ensureStores);
     var missing = STORES.concat([LEGACY]).filter(function (s) { return !d.objectStoreNames.contains(s); });
     if (missing.length) { var v = d.version + 1; d.close(); d = await idbOpen(DB_NAME, v, ensureStores); }
-    d.onversionchange = function () { d.close(); };
+    d.onversionchange = function () { try { d.close(); } catch (e) {} if (state.db === d) { state.db = null; state.dbReady = false; renderDBBanner(); } };
+    d.onclose = function () { if (state.db === d) { state.db = null; state.dbReady = false; renderDBBanner(); } };   // Safari may close the connection in the background
     return d;
   }
+  // If the browser closed the connection (common on iOS after the app was in the background), reopen once and continue.
+  async function ensureConn() {
+    if (state.db && state.dbReady) return;
+    if (state.dbAttempt) { await state.dbAttempt; }
+    else await initializeDatabase();
+    if (!state.db || !state.dbReady) throw (state.dbError || new Error('Local database is not ready. Retry database connection.'));
+  }
   function reqP(req) { return new Promise(function (res, rej) { req.onsuccess = function () { res(req.result); }; req.onerror = function () { rej(req.error); }; }); }
-  function getAll(s) { if (!state.db) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); return reqP(state.db.transaction(s, 'readonly').objectStore(s).getAll()).then(function (r) { return r || []; }); }
+  function getAll(s) { if (!state.db) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); try { return reqP(state.db.transaction(s, 'readonly').objectStore(s).getAll()).then(function (r) { return r || []; }); } catch (e) { return Promise.reject(e); } }
   function txDone(tx) { return new Promise(function (res, rej) { tx.oncomplete = function () { res(); }; tx.onabort = function () { rej(tx.error || new Error('aborted')); }; tx.onerror = function () { }; }); }
-  function put(s, x) { if (!state.db || !state.dbReady) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); try { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).put(x); return txDone(tx); } catch (e) { return Promise.reject(e); } }
+  // rawPut works as soon as a connection exists (used by startup migration); put() additionally requires a ready, healthy connection and reconnects once if it was closed.
+  function rawPut(s, x) { if (!state.db) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); try { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).put(x); return txDone(tx); } catch (e) { return Promise.reject(e); } }
+  async function put(s, x) { try { await ensureConn(); return await rawPut(s, x); } catch (e) { if (e && e.name === 'InvalidStateError') { state.db = null; state.dbReady = false; await ensureConn(); return rawPut(s, x); } throw e; } }
   // Work records: the one-record-per-date check and the write happen inside ONE transaction, against the data stored on disk
   // (not the on-screen copy), so a double tap or a second open window can never create a second record for the same day.
-  function putWork(rec) {
+  async function putWork(rec) { try { await ensureConn(); return await putWork1(rec); } catch (e) { if (e && e.name === 'InvalidStateError') { state.db = null; state.dbReady = false; await ensureConn(); return putWork1(rec); } throw e; } }
+  function putWork1(rec) {
     return new Promise(function (resolve, reject) {
       var tx; try { if (!state.db) throw new Error('Local database is not ready. Close other app tabs and reload.'); tx = state.db.transaction('work', 'readwrite'); } catch (e) { return reject(e); }
       var os = tx.objectStore('work'), dup = false, rq = os.getAll();
@@ -199,7 +228,8 @@
       };
     });
   }
-  function del(s, id) { if (!state.db || !state.dbReady) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); try { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).delete(id); return txDone(tx); } catch (e) { return Promise.reject(e); } }
+  function rawDel(s, id) { if (!state.db) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); try { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).delete(id); return txDone(tx); } catch (e) { return Promise.reject(e); } }
+  async function del(s, id) { try { await ensureConn(); return await rawDel(s, id); } catch (e) { if (e && e.name === 'InvalidStateError') { state.db = null; state.dbReady = false; await ensureConn(); return rawDel(s, id); } throw e; } }
   async function loadAll() { for (var i = 0; i < STORES.length; i++) state.data[STORES[i]] = await getAll(STORES[i]); }
   async function migrateLegacy() {
     try {
@@ -207,7 +237,7 @@
       var legacy = await getAll(LEGACY);
       for (var i = 0; i < legacy.length; i++) {
         var x = legacy[i];
-        if (x && x.date && !state.data.work.some(function (y) { return y.date === x.date; })) await put('work', Object.assign({}, x, { id: x.id || uid() }));
+        if (x && x.date && !state.data.work.some(function (y) { return y.date === x.date; })) await rawPut('work', Object.assign({}, x, { id: x.id || uid() }));
       }
       localStorage.setItem('mst-migrated-v4', 'yes');
       state.data.work = await getAll('work');
@@ -738,7 +768,7 @@
 
   /* ---------- events ---------- */
   function bind() {
-    $('menuBtn').onclick = function () { openDlg('menu'); }; $('menuDutyProgram').onclick=openProgram; $('saveProgram').onclick=saveProgram; $('dbRetry').onclick=function(){initializeDatabase();}; $('balanceDetails').onclick=function(){switchView('reports');}; $('recentDetails').onclick=function(){switchView('money');}; $('programRest').onchange=function(){ $('programTimes').hidden=this.checked; }; $('programHistory').addEventListener('click',function(e){var b=e.target.closest('[data-program-edit]');if(!b)return;var p=state.data.dutyPrograms.find(function(x){return x.id===b.getAttribute('data-program-edit');});if(!p)return;$('programDate').value=p.date;$('programRest').checked=!!p.rest;$('programTimes').hidden=!!p.rest;$('programStart').value=p.start||'';$('programEnd').value=p.end||'';$('programBreak').value=p.breakMinutes||0;$('programOt').value=p.otHours||0;$('programPreview').textContent='Existing photo: '+(p.photo&&p.photo.name||'saved');});
+    $('menuBtn').onclick = function () { openDlg('menu'); }; $('menuDutyProgram').onclick=openProgram; $('saveProgram').onclick=saveProgram; $('dbRetry').onclick=function(){return initializeDatabase();}; $('balanceDetails').onclick=function(){switchView('reports');}; $('recentDetails').onclick=function(){switchView('money');}; $('programRest').onchange=function(){ $('programTimes').hidden=this.checked; }; $('programHistory').addEventListener('click',function(e){var b=e.target.closest('[data-program-edit]');if(!b)return;var p=state.data.dutyPrograms.find(function(x){return x.id===b.getAttribute('data-program-edit');});if(!p)return;$('programDate').value=p.date;$('programRest').checked=!!p.rest;$('programTimes').hidden=!!p.rest;$('programStart').value=p.start||'';$('programEnd').value=p.end||'';$('programBreak').value=p.breakMinutes||0;$('programOt').value=p.otHours||0;$('programPreview').textContent='Existing photo: '+(p.photo&&p.photo.name||'saved');});
     $('menuUpdate').onclick=function(){closeDlg('menu');if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){navigator.serviceWorker.getRegistration().then(function(reg){if(reg)reg.update().catch(function(){});toast('Update check started. If an update is available, the app will prompt you.');}).catch(function(){toast('Could not check for updates.');});}else{toast('Update check is not supported in this browser.');}};$('privacyBtn').onclick=function(){closeDlg('menu');openDlg('privacyDlg');};
     document.querySelectorAll('[data-money-jump]').forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-money-jump');document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});};});
     document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'||id==='language'?'settings':id==='work'?'work':'money');if(id==='people'||id==='backupSec'||id==='gifts'||id==='language'||id==='export')setTimeout(function(){var target=id==='language'?'settings':id==='export'?'backupSec':id;document.getElementById(target).scrollIntoView({behavior:'smooth',block:'start'});if(id==='language')document.getElementById('language').focus();},80); }; });
@@ -799,11 +829,14 @@
 
   /* ---------- start ---------- */
   async function init() {
-    loadSettings(); applyTheme(); bind(); render(); renderDBBanner(); startClock();
+    loadSettings(); applyTheme(); bind(); safeRender(); renderDBBanner(); startClock();
     document.addEventListener('visibilitychange', function () { if (document.hidden) stopClock(); else startClock(); });
-    await initializeDatabase();
-    render();
+    registerSW();
+    try { await initializeDatabase(); } catch (e) { state.dbError = e; renderDBBanner(); }
+    safeRender();
     initStorage().then(function () { renderBackupUi(); });
+  }
+  function registerSW() {
     if ('serviceWorker' in navigator) {
       try {
         navigator.serviceWorker.register('./service-worker.js').then(function (reg) {
@@ -813,5 +846,5 @@
     }
   }
   window.MSTReady = init();
-  window.MSTDebug = { refresh: refresh, render: render, tickClock: tickClock, buildCsvReport: buildCsvReport, buildPrintHtml: buildPrintHtml, currentReport: currentReport, state: state, validateBackup: validateBackup, buildBackup: buildBackup, buildCsvAll: buildCsvAll, writeAll: writeAll, planMerge: R.planMerge };
+  window.MSTDebug = { refresh: refresh, render: render, tickClock: tickClock, buildCsvReport: buildCsvReport, buildPrintHtml: buildPrintHtml, currentReport: currentReport, state: state, validateBackup: validateBackup, buildBackup: buildBackup, buildCsvAll: buildCsvAll, writeAll: writeAll, planMerge: R.planMerge, put: put, putWork: putWork, del: del, getAll: getAll, initializeDatabase: initializeDatabase, errCategory: errCategory, rawPut: rawPut };
 })();

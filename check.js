@@ -33,7 +33,7 @@ test('Receipt attachment is optional, locally stored and expandable',()=>{assert
 test('Fresh installs contain no hard-coded personal transaction records',()=>{assert(!app.includes('historic-remit-2026-08'));assert(!app.includes('historic-gift-sohel-2026-09-15'));assert(app.includes('Fresh installs start empty'));});
 test('Compact UI and sticky header rules present',()=>{assert(css.includes('header{position:sticky'));assert(css.includes('.duty-toggle.done'));});
 test('No Rent setting is exposed in settings',()=>{assert(!html.includes('id="rentEnabled"'))});
-test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.5.3'"));assert(sw.includes("VERSION = '9.5.3'"))});
+test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.5.4'"));assert(sw.includes("VERSION = '9.5.4'"))});
 test('Today duty section is positioned immediately before Quick Actions',()=>{const duty=html.indexOf('class="card duty-card"'),quick=html.indexOf('id="quickActions"');assert(duty>=0&&quick>=0&&duty<quick);assert(quick-duty<600);});
 test('Opening any edit form closes the calendar instead of auto-showing it',()=>{assert(app.includes('function openForm(kind, old) {\n    if (!state.dbReady'));assert(app.includes('closeWorkCalendar();'));assert(html.includes('id="calendarPanel" hidden'));});
 test('CSS is structurally balanced',()=>{assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length)});

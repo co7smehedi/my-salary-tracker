@@ -1,4 +1,4 @@
-# My Salary Tracker — version 9.2
+# My Salary Tracker — version 9.5.4 (database repair)
 
 A private salary, expense and money tracker that works offline on iPhone and Android.
 **Your records stay on your phone. Nothing is sent to any server.**
@@ -8,9 +8,26 @@ A private salary, expense and money tracker that works offline on iPhone and And
 `index.html` `style.css` `app.js` `calc.js` `backup-rules.js` `i18n.js` `service-worker.js` `manifest.json` `recover.html` `recover.js`
 `icon-192.png` `icon-512.png` `icon-maskable-512.png` `apple-touch-icon.png` `README.md`
 
-The file list is the same as 9.1 (no new files). Upload all 15 files (see step 1 below).
+The file list is the same as 9.1 (no new files). Upload all 15 files (see step 1 below). The `tests` folder and `TEST-REPORT.md` are NOT uploaded to GitHub.
 
 There is **no `icons` folder**. All icons sit next to the other files.
+
+## 0. What changed in 9.5.4 (database repair — no records, settings or database names/versions were changed)
+
+**Cause of "ডাটাবেইজ প্রস্তুত নয়" (proven by test):** the Home page had no element with id `ot` (overtime), but the screen-drawing code writes to it. Drawing the screen therefore crashed every time. The database itself opened fine, but the crash happened inside the database start-up step, so the app marked the database "not ready". Retry ran the same step and crashed the same way. Saving was disabled because the app thought the database was not ready.
+
+**Fixes**
+- Added the missing Overtime element to the Home page.
+- A screen-drawing error can no longer be reported as a database failure; it shows as "Screen error" with the real message and the database stays usable.
+- Start-up no longer stops if the screen crashes, and the update check (service worker) is registered first, so a broken release can always be replaced.
+- The banner now shows the real error category and message (BLOCKED, TIMEOUT, QUOTA, STORAGE_DENIED, BROWSER_STORAGE_ERROR ...) and what to do. Retry returns its result and performs the full open again.
+- If iOS closes the database connection in the background, the next save reopens it automatically.
+- The old-version "workEntries" copy now really runs at start-up (it was silently blocked before). It only adds days that have no record yet, never overwrites, and never deletes the old store.
+- Service worker cache renamed `mst-v9-5-4`; older caches are removed when it activates.
+
+**If the banner says BLOCKED:** fully close the Home Screen app (swipe it away) and every Safari tab of this app, wait a few seconds, open the app again and tap Retry.
+
+**Not included:** automatic reading of schedule photos (OCR). It does not exist in this app. Schedule details are typed in by hand after the photo is attached; the photo stays on the phone.
 
 ## 1. Update the app on GitHub (iPhone only)
 

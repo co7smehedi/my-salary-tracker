@@ -1,0 +1,1 @@
+{"name":"mst-tests","private":true,"scripts":{"test":"node --test --test-force-exit db.test.js && node check.js"},"devDependencies":{"jsdom":"^26","fake-indexeddb":"^6"}}

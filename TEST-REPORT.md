@@ -1,23 +1,11 @@
-# My Salary Tracker v9.5.3 — Test Report
+# Test report - My Salary Tracker 9.5.4
 
-Base: user-provided v9.4.2 Duty Calendar Fix archive, with v9.5.0 feature set re-applied and fixes rebuilt.
+Run: `cd tests && npm i && npm test` (Node 22, jsdom + fake-indexeddb).
 
-## Automated checks
-- `node --check app.js` — passed
-- `node tests/check.js` (run from tests directory) — 39/39 passed
-- ZIP integrity check — passed
+- tests/db.test.js: 23 tests, 23 pass, 0 fail. Runs the real index.html + app.js in jsdom against a real IndexedDB implementation.
+- tests/check.js (older suite): 39 pass, 0 fail.
+- The same 23 tests run against the uploaded 9.5.3 code: 21 fail, 2 pass. That is the evidence for the root cause.
 
-## Changes verified by static checks
-- Quick Action translations for six languages
-- Camera and Photo Library file chooser (no camera-only `capture` attribute)
-- Duty Hours field visibility controlled by Work status
-- Storage quota/usage null-safe handling
-- Visible IndexedDB loading/error/retry banner, blocked-upgrade timeout, data-entry gating, and readable connection guard
-- Balance summary details and shortcut; Recent Transactions View All shortcut
-- Existing calendar, salary calculations, backup/restore, local receipts and Monday Duty Program kept
-- Fresh install personal historical transaction seeding removed; existing local data untouched
+Covered: fresh DB, existing v1 DB, missing stores (v3 -> v4, records kept), open failure + Retry, blocked upgrade + Retry, one init for concurrent calls, render crash not shown as DB failure, work add + duplicate date, Home duty button, payments/expenses/gifts/remittances saved and reloaded, closed connection reopened, bad-record transaction failure, duty program photo save on a Wednesday, backup -> restore, legacy migration without overwrite, Details/View all buttons, rendering in 6 languages x 5 views, zero network calls, service worker install/activate/network-first/offline fallback (real service-worker.js executed in a sandbox with a fake cache).
 
-## Device test limitation
-The app was not launched on a physical iPhone in this environment. Confirm camera/photo chooser, IndexedDB behavior, and existing device data on the phone before considering the live release verified.
-
-- OCR remains unavailable: schedule photo is stored locally; schedule times and status are entered manually.
+NOT tested (cannot be done here): real Safari/iOS Home Screen behaviour, real Safari IndexedDB quirks, real service worker in a browser, CSS layout of the Details pages, camera/photo-library pickers on a phone, OCR (does not exist).
