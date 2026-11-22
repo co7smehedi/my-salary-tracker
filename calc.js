@@ -36,6 +36,10 @@
   // One work record -> money. Known example: 8h = 25.00, 10h = 25.00 + 2 x 2.77 = 30.54
   function dayParts(w, st) {
     var s = Object.assign({}, DEFAULTS, st || {});
+    // Per-record snapshots keep future setting changes from silently recalculating newly recorded work.
+    if (w && w.basicRate !== undefined && Number.isFinite(Number(w.basicRate))) s.basic = Number(w.basicRate);
+    if (w && w.standardHours !== undefined && Number.isFinite(Number(w.standardHours))) s.standard = Number(w.standardHours);
+    if (w && w.otRate !== undefined && Number.isFinite(Number(w.otRate))) s.otRate = Number(w.otRate);
     var status = normStatus(w && w.status), base = 0, otHours = 0, otPay = 0;
     if (status === 'worked') {
       base = num(s.basic);
@@ -81,7 +85,7 @@
     out.hoursWorked = r2(out.hoursWorked);
     out.wages = r2(out.wages); out.otPay = r2(out.otPay); out.otHours = r2(out.otHours);
     out.earned = r2(out.wages + out.otPay);
-    out.busDue = out.workedDays > 0 ? r2(s.bus) : 0;
+    var busRate = s.bus; var snapshotWork = w.slice().sort(function(a,b){return String(a.date||'').localeCompare(String(b.date||''));}).find(function(x){return x.busAllowanceRate!==undefined&&Number.isFinite(Number(x.busAllowanceRate));}); if(snapshotWork)busRate=Number(snapshotWork.busAllowanceRate); out.busDue = out.workedDays > 0 ? r2(busRate) : 0;
     p.forEach(function (x) { var a = num(x.amount), b = Math.min(Math.max(0, num(x.bus)), a); out.paymentsTotal += a; out.busReceived += b; });
     out.paymentsTotal = r2(out.paymentsTotal); out.busReceived = r2(out.busReceived);
     // Bus allowance Paid / Unpaid: derived from the payments' "bus allowance included" amounts. Display only - never part of earned or salary outstanding.

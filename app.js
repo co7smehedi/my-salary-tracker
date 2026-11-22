@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.2.2';
+  var VERSION = '9.3.0';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts'];
   var LEGACY = 'workEntries';
@@ -14,7 +14,7 @@
   var state = {
     db: null, data: { work: [], payments: [], expenses: [], remittances: [], gifts: [] },
     settings: Object.assign({}, C.DEFAULTS), month: new Date(), rtype: 'month', ryear: new Date().getFullYear(),
-    edit: null, pending: null, dbError: null, storage: null, updatePending: false
+    edit: null, pending: null, dbError: null, storage: null, updatePending: false, workSelected: null, personSelected: null
   };
 
   /* ---------- translation & formatting ---------- */
@@ -107,7 +107,7 @@
   function cleanSettings(raw) {
     var s = Object.assign({}, C.DEFAULTS), r = raw && typeof raw === 'object' ? raw : {};
     ['basic', 'standard', 'otRate', 'bus', 'bonus'].forEach(function (k) { if (r[k] !== undefined && r[k] !== null && r[k] !== '' && Number.isFinite(Number(r[k])) && Number(r[k]) >= 0) s[k] = Number(r[k]); });
-    ['paidLeave', 'paidHoliday', 'sickPaid', 'rentEnabled'].forEach(function (k) { if (typeof r[k] === 'boolean') s[k] = r[k]; });
+    ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { if (typeof r[k] === 'boolean') s[k] = r[k]; }); s.rentEnabled=false;
     if (I.LANGS.indexOf(r.language) >= 0) s.language = r.language;
     if (['auto', 'light', 'dark'].indexOf(r.theme) >= 0) s.theme = r.theme;
     return s;
@@ -208,7 +208,7 @@
     document.querySelectorAll('[data-action]').forEach(function(b){b.querySelector('b').textContent=labels[b.getAttribute('data-action')]||'';});
     $('balanceSummary').querySelector('h3').textContent=w.balance;
     $('balanceSummary').querySelector('.note').textContent=w.balanceSub;
-    $('recentTitleText') && ($('recentTitleText').textContent=w.recent);
+    $('recentCard').querySelector('h3').textContent=w.recent;
     $('balanceMonth').textContent=fmtMonth(viewMonth(),true);
     var income=Math.max(0,C.num(c.salaryReceived)), out=Math.max(0,C.num(c.expenses)+C.num(c.remitEur)+C.num(c.giftEur));
     $('balanceBar').style.width=(income?Math.min(100,out/income*100):0)+'%';
@@ -222,10 +222,25 @@
     list.sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));});
     $('recentList').innerHTML=list.slice(0,5).map(function(x){return '<div class="recent-item"><span class="recent-icon">'+x.icon+'</span><span class="recent-name">'+safe(x.name)+'</span><span class="recent-amount '+(x.kind==='pos'?'positive':'negative')+'">'+(x.amount>=0?'+':'−')+safe(money(Math.abs(x.amount)))+'</span></div>';}).join('')||'<small class="empty">'+safe(tr('r_none'))+'</small>';
   }
+  function renderWorkCalendar() {
+    var m = viewMonth(), y = +m.slice(0,4), mo = +m.slice(5,7)-1, first = new Date(y,mo,1), days = new Date(y,mo+1,0).getDate();
+    var start = (first.getDay()+6)%7; // Monday first
+    var labels = {bn:['সোম','মঙ্গল','বুধ','বৃহ','শুক্র','শনি','রবি'],en:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],tr:['Pzt','Sal','Çar','Per','Cum','Cmt','Paz'],bg:['Пон','Вт','Ср','Чет','Пет','Съб','Нед'],hi:['सोम','मंगल','बुध','गुरु','शुक्र','शनि','रवि'],el:['Δευ','Τρι','Τετ','Πεμ','Παρ','Σαβ','Κυρ']};
+    var heads=(labels[lang()]||labels.en).map(function(x){return '<span class="cal-head">'+safe(x)+'</span>';}).join('');
+    var cells=''; for(var i=0;i<start;i++) cells+='<span class="cal-empty"></span>';
+    for(var d=1;d<=days;d++){var date=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');var rec=state.data.work.find(function(x){return x.date===date;});var status=rec?C.normStatus(rec.status):'none';var cl=status==='worked'?'worked':status==='rest'?'rest':status==='paid_leave'?'paid':status==='unpaid_leave'?'unpaid':status==='sick_leave'?'sick':status==='holiday'?'holiday':'';var isToday=date===today();cells+='<button type="button" class="cal-day '+cl+(isToday?' today':'')+'" data-cal-date="'+date+'" aria-label="'+safe(date+(rec?' '+statusLabel(rec.status):''))+'"><span>'+d+'</span>'+(rec?'<small>'+safe(status==='worked'?numFmt(rec.hours||0)+'h':statusLabel(status))+'</small>':'')+'</button>';}
+    $('workCalendar').innerHTML=heads+cells; $('workMonth').textContent=fmtMonth(m); var total=C.calcMonth(state.data,state.settings,m);$('workDaysCount').textContent=total.workedDays;$('workMonthEarned').textContent=money(total.earned);
+  }
+  function personGroups() {var map={};state.data.gifts.forEach(function(g){var name=String(g.person||'').trim();if(!name)return;var k=name.toLocaleLowerCase();if(!map[k])map[k]={name:name,eur:0,bdt:0,other:0,count:0,items:[]};var c=String(g.currency||'EUR').toUpperCase();if(c==='EUR')map[k].eur+=C.num(g.amount);else if(c==='BDT')map[k].bdt+=C.num(g.amount);else {map[k].other+=C.num(g.amount);map[k].currencies=map[k].currencies||{};map[k].currencies[c]=(map[k].currencies[c]||0)+C.num(g.amount);}map[k].count++;map[k].items.push(g);});return Object.keys(map).map(function(k){return map[k];}).sort(function(a,b){return a.name.localeCompare(b.name);});}
+  function renderPeople() {var groups=personGroups(),words={bn:'লেনদেন',en:'transactions',tr:'işlem',bg:'транзакции',hi:'लेन-देन',el:'συναλλαγές'};var word=words[lang()]||words.en;$('peopleList').innerHTML=groups.map(function(g){return '<button type="button" class="person-row" data-person="'+safe(g.name)+'"><strong>'+safe(g.name)+'</strong><span>'+money(g.eur)+' · '+numFmt(g.bdt)+' BDT</span><small>'+g.count+' '+safe(word)+'</small></button>';}).join('')||'<p class="empty">'+safe(tr('r_none'))+'</p>';}
+  function openPerson(name) {var group=personGroups().find(function(g){return g.name.toLocaleLowerCase()===String(name).toLocaleLowerCase();});if(!group)return;state.personSelected=group.name;var extra=group.currencies?Object.keys(group.currencies).map(function(c){return '<div><small>'+safe(c)+' total</small><b>'+safe(numFmt(group.currencies[c]))+'</b></div>';}).join(''):'';$('personTitle').textContent=group.name;$('personProfile').innerHTML='<div class="person-totals"><div><small>EUR total</small><b>'+safe(money(group.eur))+'</b></div><div><small>BDT total</small><b>'+safe(numFmt(group.bdt))+' ৳</b></div><div><small>Transactions</small><b>'+group.count+'</b></div>'+extra+'</div>'+group.items.sort(byDateDesc).map(function(x){return row(fmtDate(x.date),x.note||'',money(x.amount,String(x.currency||'EUR').toUpperCase()),'gifts',x.id);}).join('');openDlg('peopleDlg');}
+  function quickBasicDuty() {var dt=today(),existing=state.data.work.find(function(x){return x.date===dt;});if(existing&&C.normStatus(existing.status)==='worked'){toast('আজকের Basic Duty ইতিমধ্যে যোগ করা আছে।');return;}if(existing){askConfirm('আজকের রেকর্ড পরিবর্তন করবেন?','আগের দিনের status-টি Worked হিসেবে বদলানো হবে।','Replace').then(function(ok){if(!ok)return;var rec=Object.assign({},existing,{status:'worked',hours:state.settings.standard});putWork(rec).then(refresh).then(function(){toast('আজকের Basic Duty যোগ হয়েছে।','Undo',function(){putWork(existing).then(refresh);});}).catch(function(e){toast(M('err_storage',null,': '+(e.message||e)));});});return;}var rec={id:uid(),date:dt,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,note:''};putWork(rec).then(refresh).then(function(){toast('আজকের Basic Duty যোগ হয়েছে।','Undo',function(){del('work',rec.id).then(refresh);});}).catch(function(e){toast(e&&e.dup?'আজকের কাজ আগেই রেকর্ড হয়েছে।':M('err_storage',null,': '+(e.message||e)));});}
+
   function render() {
     var s = state.settings, m = viewMonth(), c = C.calcMonth(state.data, s, m), d = state.data;
     document.documentElement.lang = lang(); applyTheme();
     document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = tr(el.getAttribute('data-t')); });
+    var extras={bn:{quickDutyLabel:'আজকের Basic Duty ১ ক্লিকে যোগ',peopleTitle:'ব্যক্তিভিত্তিক হিসাব',peopleNote:'প্রত্যেকের মোট টাকা ও লেনদেন আলাদা',transactions:'লেনদেন'},en:{quickDutyLabel:'One-tap: record today’s basic duty',peopleTitle:'People & profiles',peopleNote:'Individual totals and transaction history',transactions:'transactions'},tr:{quickDutyLabel:'Bugünün normal mesaisini tek dokunuşla kaydet',peopleTitle:'Kişiler ve profiller',peopleNote:'Kişiye göre toplamlar ve geçmiş',transactions:'işlem'},bg:{quickDutyLabel:'Запиши днешния работен ден с едно докосване',peopleTitle:'Хора и профили',peopleNote:'Суми и история по човек',transactions:'транзакции'},hi:{quickDutyLabel:'आज की सामान्य ड्यूटी एक टैप में दर्ज करें',peopleTitle:'लोग और प्रोफ़ाइल',peopleNote:'व्यक्ति के अनुसार कुल और इतिहास',transactions:'लेन-देन'},el:{quickDutyLabel:'Καταγραφή σημερινής βάρδιας με ένα πάτημα',peopleTitle:'Άτομα και προφίλ',peopleNote:'Σύνολα και ιστορικό ανά άτομο',transactions:'συναλλαγές'}};var ex=extras[lang()]||extras.en;document.querySelector('[data-t=quickDutyLabel]').textContent=ex.quickDutyLabel;document.getElementById('homeQuickDuty').textContent='✅ '+ex.quickDutyLabel;document.querySelectorAll('[data-t=peopleTitle]').forEach(function(el){el.textContent=ex.peopleTitle;});document.querySelector('[data-t=peopleNote]').textContent=ex.peopleNote;
     $('month').textContent = fmtMonth(m);
     $('clock').setAttribute('aria-label', tr('clock_label')); clockShown = { d: '', t: '' }; tickClock();
     $('earned').textContent = money(c.earned); $('days').textContent = c.workedDays; $('ot').textContent = numFmt(c.otHours) + ' h';
@@ -262,9 +277,10 @@
     $('giftList').innerHTML = d.gifts.filter(mo).sort(byDateDesc).map(function (x) {
       return row(fmtDate(x.date) + ' · ' + (x.person || ''), x.note || '', money(x.amount, String(x.currency || 'EUR').toUpperCase()), 'gifts', x.id);
     }).join('') || '<small class="empty">' + safe(tr('empty_gifts')) + '</small>';
+    renderWorkCalendar(); renderPeople();
 
     ['basic', 'standard', 'otRate', 'bus', 'bonus'].forEach(function (k) { if (document.activeElement !== $(k)) $(k).value = s[k]; });
-    ['paidLeave', 'paidHoliday', 'sickPaid', 'rentEnabled'].forEach(function (k) { $(k).checked = !!s[k]; });
+    ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { $(k).checked = !!s[k]; });
     $('language').value = lang(); $('theme').value = s.theme;
     $('verLine').textContent = 'My Salary Tracker • ' + tr('ver') + ' ' + VERSION;
     $('aboutText').textContent = tr('about_text'); $('aboutVer').textContent = tr('ver') + ' ' + VERSION;
@@ -391,7 +407,7 @@
       var val = old[key];
       if (type === 'status' || type === 'category' || type === 'currency') {
         input = document.createElement('select');
-        var opts = type === 'status' ? C.STATUSES.map(function (k) { return [k, tr('st_' + k)]; }) : type === 'category' ? catKeys().map(function (k) { return [k, tr('cat_' + k)]; }) : [['EUR', 'EUR'], ['BDT', 'BDT']];
+        var opts = type === 'status' ? C.STATUSES.map(function (k) { return [k, tr('st_' + k)]; }) : type === 'category' ? catKeys().map(function (k) { return [k, tr('cat_' + k)]; }) : [['EUR','EUR (€)'],['BDT','BDT (৳)'],['TRY','TRY (₺)'],['BGN','BGN (лв)'],['INR','INR (₹)'],['USD','USD ($)'],['GBP','GBP (£)']];
         if (type === 'status' && val != null && C.normStatus(val)) val = C.normStatus(val);
         if (type === 'category' && val != null) { var lk = String(val).trim().toLowerCase(); if (T.en['cat_' + lk]) val = lk; if (val === 'rent' && opts.every(function (o) { return o[0] !== 'rent'; })) opts.push(['rent', tr('cat_rent')]); }
         if (type === 'currency' && val != null) val = String(val).toUpperCase();
@@ -445,7 +461,7 @@
     }
     if (kind === 'gifts' && !v.person) return fail('err_amount');
     if (kind === 'expenses' && !v.category) v.category = 'other';
-    var record = Object.assign({}, old, v, { id: old.id || uid() });
+    var record = Object.assign({}, old, v, { id: old.id || uid() }); if(kind==='work'){record.basicRate=old.basicRate===undefined?state.settings.basic:old.basicRate;record.standardHours=old.standardHours===undefined?state.settings.standard:old.standardHours;record.otRate=old.otRate===undefined?state.settings.otRate:old.otRate;record.busAllowanceRate=old.busAllowanceRate===undefined?state.settings.bus:old.busAllowanceRate;}
     try {
       if (kind === 'work') await putWork(record); else await put(kind, record);
       closeDlg('editDialog'); state.edit = null;
@@ -645,6 +661,8 @@
 
   function switchView(view) {
     document.body.setAttribute('data-view', view);
+    if(['home','work','money','reports','settings'].indexOf(view)<0)view='home';
+    document.body.setAttribute('data-view', view);
     document.querySelectorAll('[data-nav]').forEach(function(b){var target=b.getAttribute('data-nav');var active=(view==='home'&&target==='top')||(view==='work'&&target==='work')||(view==='money'&&target==='payments')||(view==='reports'&&target==='reports');b.classList.toggle('active',active);});
     window.scrollTo({top:0,behavior:'smooth'});
   }
@@ -652,17 +670,25 @@
   /* ---------- events ---------- */
   function bind() {
     $('menuBtn').onclick = function () { openDlg('menu'); };
-    document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'?'settings':'money'); }; });
+    $('menuUpdate').onclick=function(){closeDlg('menu');if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){navigator.serviceWorker.getRegistration().then(function(reg){if(reg)reg.update().catch(function(){});toast('Update check started. If an update is available, the app will prompt you.');}).catch(function(){toast('Could not check for updates.');});}else{toast('Update check is not supported in this browser.');}};$('privacyBtn').onclick=function(){closeDlg('menu');openDlg('privacyDlg');};
+    document.querySelectorAll('[data-money-jump]').forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-money-jump');document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});};});
+    document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'||id==='language'?'settings':id==='work'?'work':'money');if(id==='people'||id==='backupSec'||id==='gifts'||id==='language'||id==='export')setTimeout(function(){var target=id==='language'?'settings':id==='export'?'backupSec':id;document.getElementById(target).scrollIntoView({behavior:'smooth',block:'start'});if(id==='language')document.getElementById('language').focus();},80); }; });
     $('aboutBtn').onclick = function () { closeDlg('menu'); openDlg('aboutDlg'); };
-    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot')openForm('work',{date:today(),hours:state.settings.standard+1});else openForm(k);};});
+    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot'){var old=state.data.work.find(function(x){return x.date===today();});openForm('work',old?Object.assign({},old,{status:'worked',hours:C.num(old.hours)+1}):{date:today(),status:'worked',hours:state.settings.standard+1});}else openForm(k);};});
     document.querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){var target=b.getAttribute('data-nav');if(target==='quickActions'){openDlg('quickAddDialog');return;}switchView(target==='top'?'home':target==='work'?'work':target==='payments'?'money':target==='reports'?'reports':'home');};});
     document.addEventListener('click', function (e) {
       var cl = e.target.closest('.closeDlg'); if (cl) { var dd = cl.closest('dialog'); if (dd) { if (dd.close) dd.close(); else dd.removeAttribute('open'); } return; }
-      var d = e.target.closest('[data-delete]'); if (d) { var dk = d.getAttribute('data-delete'); deleteRecord(dk, findRec(dk, d.getAttribute('data-id'), d.getAttribute('data-idt'))); return; }
-      var b = e.target.closest('[data-edit]'); if (b) { var k = b.getAttribute('data-edit'); openForm(k, findRec(k, b.getAttribute('data-id'), b.getAttribute('data-idt')) || {}); return; }
+      var d = e.target.closest('[data-delete]'); if (d) { if($('peopleDlg').open)closeDlg('peopleDlg');var dk = d.getAttribute('data-delete'); deleteRecord(dk, findRec(dk, d.getAttribute('data-id'), d.getAttribute('data-idt'))); return; }
+      var b = e.target.closest('[data-edit]'); if (b) { if($('peopleDlg').open)closeDlg('peopleDlg');var k = b.getAttribute('data-edit'); openForm(k, findRec(k, b.getAttribute('data-id'), b.getAttribute('data-idt')) || {}); return; }
       var j = e.target.closest('[data-jump]'); if (j) { var t=j.getAttribute('data-jump'); switchView(t==='payments'?'money':t==='expenses'?'money':'work'); }
     });
     $('record').onclick = function () { var tw = state.data.work.find(function (x) { return x.date === today(); }); openForm('work', tw || { date: today() }); };
+    $('quickDuty').onclick = quickBasicDuty; $('homeQuickDuty').onclick=quickBasicDuty;
+    $('workPrev').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()-1,1);render();};$('workNext').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()+1,1);render();};
+    $('workCalendar').addEventListener('click',function(e){var b=e.target.closest('[data-cal-date]');if(!b)return;var dt=b.getAttribute('data-cal-date'),rec=state.data.work.find(function(x){return x.date===dt;});if(rec)openForm('work',rec);else openForm('work',{date:dt,status:'worked',hours:state.settings.standard});});
+    $('peopleList').addEventListener('click',function(e){var b=e.target.closest('[data-person]');if(b)openPerson(b.getAttribute('data-person'));});
+    $('addPerson').onclick=function(){var name=prompt('নতুন ব্যক্তির নাম লিখুন।');if(name&&name.trim()){openForm('gifts',{date:defaultDate(),person:name.trim(),currency:'EUR'});}};
+    $('renamePerson').onclick=function(){if(!state.personSelected)return;var old=state.personSelected,newName=prompt('নতুন নাম লিখুন',old);if(!newName||!newName.trim()||newName.trim()===old)return;var target=newName.trim();var list=state.data.gifts.filter(function(g){return String(g.person||'').toLocaleLowerCase()===old.toLocaleLowerCase();});Promise.all(list.map(function(g){return put('gifts',Object.assign({},g,{person:target}));})).then(function(){closeDlg('peopleDlg');refresh();toast('নাম আপডেট হয়েছে।');});};
     $('addWork').onclick = function () { openForm('work'); }; $('addPayment').onclick = function () { openForm('payments'); }; $('addExpense').onclick = function () { openForm('expenses'); };
     $('addRemit').onclick = function () { openForm('remittances'); }; $('addGift').onclick = function () { openForm('gifts'); };
     $('editForm').addEventListener('submit', saveForm);
@@ -681,7 +707,7 @@
       if (vals.standard > 24) ok = false;
       if (!ok) { setMsg('settingsMsg', M('err_settings')); return; }
       setMsg('settingsMsg', null); Object.assign(state.settings, vals);
-      ['paidLeave', 'paidHoliday', 'sickPaid', 'rentEnabled'].forEach(function (k) { state.settings[k] = $(k).checked; });
+      ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { state.settings[k] = $(k).checked; }); state.settings.rentEnabled=false;
       if (persistSettings()) { render(); toast(M('saved')); }
     };
     $('backup').onclick = doBackup; $('raw').onclick = doRaw;

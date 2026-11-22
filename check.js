@@ -1,0 +1,28 @@
+'use strict';
+const assert=require('assert');
+const C=require('../calc.js');
+const I=require('../i18n.js');
+const fs=require('fs');
+const html=fs.readFileSync('../index.html','utf8');
+const app=fs.readFileSync('../app.js','utf8');
+const css=fs.readFileSync('../style.css','utf8');
+const sw=fs.readFileSync('../service-worker.js','utf8');
+let tests=0;
+function test(name,fn){fn();tests++;console.log('PASS',name)}
+test('Default wage settings',()=>{assert.equal(C.DEFAULTS.basic,25);assert.equal(C.DEFAULTS.standard,8);assert.equal(C.DEFAULTS.otRate,2.77)});
+test('8 hour basic duty earns exactly €25',()=>{const d=C.dayParts({status:'worked',hours:8},C.DEFAULTS);assert.equal(d.base,25);assert.equal(d.otPay,0);assert.equal(d.total,25)});
+test('9 hours includes one hour OT',()=>{const d=C.dayParts({status:'worked',hours:9},C.DEFAULTS);assert.equal(d.base,25);assert.equal(d.otHours,1);assert.equal(d.otPay,2.77);assert.equal(d.total,27.77)});
+test('10 hours includes two hours OT',()=>{const d=C.dayParts({status:'worked',hours:10},C.DEFAULTS);assert.equal(d.total,30.54)});
+test('Work rate snapshots protect historical calculation',()=>{const d=C.dayParts({status:'worked',hours:9,basicRate:24,standardHours:8,otRate:2.5},{basic:30,standard:10,otRate:4});assert.equal(d.total,26.5)});
+test('Bus allowance snapshot is used for month calculation',()=>{const data={work:[{date:'2026-11-01',status:'worked',hours:8,busAllowanceRate:40}],payments:[],expenses:[],remittances:[],gifts:[]};const c=C.calcMonth(data,{...C.DEFAULTS,bus:50},'2026-11');assert.equal(c.busDue,40)});
+test('Remittance fee and bonus formula',()=>{const q=C.remitParts({amount:100,fee:2,rate:100,bonus:2.5});assert.equal(q.net,98);assert.equal(q.bonusEur,2.45);assert.equal(q.bdt,10045)});
+test('Earned, received, outstanding, expenses remain separate',()=>{const data={work:[{date:'2026-11-01',status:'worked',hours:8}],payments:[{date:'2026-11-02',month:'2026-11',amount:10,bus:0}],expenses:[{date:'2026-11-03',amount:4,category:'food'}],remittances:[],gifts:[]};const c=C.calcMonth(data,C.DEFAULTS,'2026-11');assert.equal(c.earned,25);assert.equal(c.salaryReceived,10);assert.equal(c.outstanding,15);assert.equal(c.expenses,4);assert.equal(c.balance,6)});
+test('Six language bundles exist',()=>{I.LANGS.forEach(k=>assert(I.T[k]));assert.equal(I.LANGS.length,6)});
+test('Work calendar and one-tap duty controls exist',()=>{['workCalendar','workMonth','workPrev','workNext','quickDuty','homeQuickDuty'].forEach(id=>assert(html.includes('id="'+id+'"'),id))});
+test('People profiles and rename dialog exist',()=>{['people','peopleList','peopleDlg','renamePerson','addPerson'].forEach(id=>assert(html.includes('id="'+id+'"'),id))});
+test('Edit and delete controls remain available',()=>{assert(app.includes('data-edit'));assert(app.includes('data-delete'));assert(html.includes('id="deleteBtn"'))});
+test('All main nav destinations are defined',()=>{['data-nav="top"','data-nav="work"','data-nav="quickActions"','data-nav="payments"','data-nav="reports"'].forEach(x=>assert(html.includes(x),x))});
+test('No Rent setting is exposed in settings',()=>{assert(!html.includes('id="rentEnabled"'))});
+test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.3.0'"));assert(sw.includes("VERSION = '9.3.0'"))});
+test('CSS is structurally balanced',()=>{assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length)});
+console.log(`\n${tests}/${tests} checks passed.`);

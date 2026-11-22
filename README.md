@@ -118,3 +118,15 @@ The Menu only lists things that really work.
 
 No servers, no analytics, no tracking, no outside scripts, no cloud backup. Records are stored in the phone’s IndexedDB; settings and the last-backup date in local storage.
 The only files that leave the app are the ones **you** export.
+
+## v9.3.0 consolidated navigation and work-calendar update
+
+- Work screen now includes a month calendar with status colors, month navigation, month earned/worked summary, and editable dates.
+- One-tap Basic Duty is available on Home and Work. It records the configured standard hours and rate snapshot; duplicate work for today is prevented. Undo is offered after a new quick record.
+- Work entries now snapshot basic wage, standard hours, and OT rate when saved, so new entries do not silently recalculate when rates change later. Older records without snapshots continue using the current settings until edited.
+- People summary groups Money Given entries by person, shows EUR/BDT totals and transaction count, and opens a profile with history and per-currency totals. Existing entries can be edited/deleted; names can be renamed across records.
+- Added Money page jump buttons, App Update check, Language shortcut, Privacy/Security explainer, Export shortcut, and additional Money Given currencies.
+- Removed the Rent setting from the visible Settings page. Existing rent records are preserved but excluded by the default setting.
+- Version: 9.3.0. Data stores are unchanged; no user records are intentionally deleted.
+
+Known limitations in this build: weekly schedule program/OCR import, background reminder scheduling, and a full multi-currency report/dashboard have not been implemented. Browser/iPhone end-to-end interaction tests could not be run in this environment; see TEST-REPORT.md.
