@@ -1,4 +1,10 @@
-# My Salary Tracker — version 9.5.10 (income calculation and tips fix)
+# My Salary Tracker — version 9.5.11 (income calculation and tips fix)
+
+## Changes in 9.5.11
+- Home clock: compact time on the left and date on the right.
+- Backup screen action now clearly supports importing/restoring backup JSON. Standard backups and recovery-export JSON are supported; recovery exports can also restore settings from the saved localStorage snapshot.
+- About profile text for Mehedi Hasan, a waiter working in Cyprus (localized in Bengali and English).
+- ZIP contains only the app folder; no tests or test reports.
 
 A private salary, expense and money tracker that works offline on iPhone and Android.
 **Your records stay on your phone. Nothing is sent to any server.**

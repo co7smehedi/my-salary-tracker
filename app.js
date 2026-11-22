@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.5.10';
+  var VERSION = '9.5.11';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms', 'tips'];
   var LEGACY = 'workEntries';
@@ -44,6 +44,7 @@
   function safe(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function uid() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2, 10)); }
   function today() { return C.dateKey(new Date()); }
+  function aboutProfile() { var l=lang(); if(l==='bn') return 'আমি Mehedi Hasan। সাইপ্রাসে একজন ওয়েটার হিসেবে কাজ করি। নিজের কাজের দিন, বেসিক বেতন, ওভারটাইম, টিপস, খরচ এবং দেশে পাঠানো টাকা গুছিয়ে রাখার জন্য My Salary Tracker তৈরি করেছি। অ্যাপটি অফলাইনেও কাজ করার জন্য তৈরি এবং আর্থিক তথ্য এই ডিভাইসেই রাখে।'; return 'My name is Mehedi Hasan. I work as a waiter in Cyprus. I created My Salary Tracker to keep track of my work days, basic salary, overtime, tips, expenses, and money sent home. It is designed to work offline and keep financial records on this device.'; }
   function viewMonth() { return C.monthKeyOf(state.month); }
   function statusLabel(s) { var k = C.normStatus(s); return k ? tr('st_' + k) : String(s || '') + ' ⚠'; }
   function catLabel(v) { var k = String(v || '').trim().toLowerCase(); return (T.en['cat_' + k]) ? tr('cat_' + k) : String(v || ''); }
@@ -376,7 +377,7 @@
     ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { $(k).checked = !!s[k]; });
     $('language').value = lang(); $('theme').value = s.theme; $('country').value=s.country||'CY'; $('currencyDisplay').value=(s.currency||'EUR');
     $('verLine').textContent = 'My Salary Tracker • ' + tr('ver') + ' ' + VERSION;
-    $('aboutText').textContent = tr('about_text'); $('aboutVer').textContent = tr('ver') + ' ' + VERSION;
+    $('aboutText').textContent = aboutProfile(); $('aboutVer').textContent = tr('ver') + ' ' + VERSION;
     renderBackupUi(); renderReport(); renderDesignSummary(c); renderDBBanner();
     ['record','quickDuty','addWork','addPayment','addExpense','addRemit','addGift','addPerson'].forEach(function(id){var el=$(id);if(el)el.disabled=!state.dbReady;});
     document.querySelectorAll('[data-action]').forEach(function(el){el.disabled=!state.dbReady;});
@@ -655,7 +656,8 @@
   /* ---------- restore (validate -> safety backup -> all-or-nothing write) ---------- */
   function validateBackup(p) {
     var r = R.validateBackup(p); if (!r.ok) return r;
-    r.settings = r.rawSettings ? cleanSettings(Object.assign({}, state.settings, r.rawSettings)) : null;
+    var full = p && p.settings && typeof p.settings === 'object' ? p.settings : (p.data && p.data.settings && typeof p.data.settings === 'object' ? p.data.settings : null);
+    r.settings = full ? cleanSettings(Object.assign({}, state.settings, full, r.rawSettings || {})) : (r.rawSettings ? cleanSettings(Object.assign({}, state.settings, r.rawSettings)) : null);
     return r;
   }
   function describeErr(e) {                         // human text in the CURRENT language
@@ -678,6 +680,8 @@
     var input = e.target, f = input.files && input.files[0]; if (!f) return;
     try {
       var parsed; try { parsed = JSON.parse(await f.text()); } catch (er) { toast(M('b_invalid')); return; }
+      /* Recovery exports include localStorage separately; recover app settings from that backup too. */
+      if (parsed && parsed.kind === 'recovery-export' && parsed.localStorage && !parsed.settings) { try { parsed.settings = JSON.parse(parsed.localStorage[SETTINGS_KEY] || '{}'); } catch (_) { parsed.settings = {}; } }
       var v = validateBackup(parsed); if (!v.ok) { toast(M('b_invalid', null, function () { return ' (' + describeErr(v.err) + ')'; })); return; }
       state.pending = { v: v, name: f.name, safety: false };
       $('rsInfo').innerHTML = '<div>' + safe(tr('b_file')) + ': <strong>' + safe(f.name) + '</strong></div>' + (v.exportedAt ? '<div>' + safe(tr('b_exported')) + ': ' + safe(v.exportedAt.slice(0, 16).replace('T', ' ')) + '</div>' : '') +

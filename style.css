@@ -260,3 +260,9 @@ header h1{font-size:19px}.card{padding:13px;border-radius:18px;margin:9px 0}.car
 dialog h3[tabindex="-1"]{outline:none}
 /* v9.5.10: smaller header logo */
 .brand{gap:5px}.brand-logo{width:17px;height:17px;border-radius:3px}.brand h1{font-size:17px;letter-spacing:-.25px}
+
+/* v9.5.11: home clock compact and edge aligned */
+#clock{justify-content:space-between;gap:6px;padding:4px 7px}
+#clockTime{order:0;font-size:11px;font-weight:600;text-align:left}
+#clockDate{order:1;font-size:10px;text-align:right;margin-left:auto}
+#clockTime,#clockDate{padding:2px 5px;border-radius:6px;line-height:1.15}
