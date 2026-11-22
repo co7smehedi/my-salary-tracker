@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.4.0';
+  var VERSION = '9.4.1';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts'];
   var LEGACY = 'workEntries';
@@ -265,10 +265,7 @@
     $('clock').setAttribute('aria-label', tr('clock_label')); clockShown = { d: '', t: '' }; tickClock();
     $('earned').textContent = money(c.earned); $('days').textContent = c.workedDays; $('ot').textContent = numFmt(c.otHours) + ' h';
     $('formula').textContent = tr('fml', { basic: numFmt(s.basic), ot: numFmt(s.otRate) });
-    $('received').textContent = money(c.salaryReceived); $('expTotal').textContent = money(c.expenses);
-    var over = c.overpaid > 0;
-    $('dueLbl').textContent = tr(over ? 'overpaid' : 'due'); $('due').textContent = money(over ? c.overpaid : c.outstanding);
-    $('dueTile').classList.toggle('warn', over);
+    $('received').textContent = money(c.salaryReceived); $('incomeLabel').textContent = tr('incomeThisMonth'); $('expTotal').textContent = money(c.expenses);
     $('busLine').textContent = c.busDue > 0
       ? tr('bus_line', { due: money(c.busDue), status: tr('bus_' + c.busStatus) }) + (c.busStatus === 'partial' ? ' · ' + tr('bus_left', { amount: money(c.busOutstanding) }) : '')
       : tr('bus_notdue');
@@ -679,7 +676,9 @@
     state.updatePending = false; $('updBackup').classList.remove('step-done'); $('updBackup').textContent = tr('upd_backup'); renderBackupUi(); openDlg('updateDlg');
   }
 
+  function closeWorkCalendar() { var panel=$('calendarPanel'),btn=$('calendarToggle'); if(panel&&btn){panel.hidden=true;btn.setAttribute('aria-expanded','false');btn.textContent=tr('showCalendar');} }
   function switchView(view) {
+    closeWorkCalendar();
     document.body.setAttribute('data-view', view);
     if(['home','work','money','reports','settings'].indexOf(view)<0)view='home';
     document.body.setAttribute('data-view', view);
@@ -704,6 +703,7 @@
     });
     $('record').onclick = function () { var tw = state.data.work.find(function (x) { return x.date === today(); }); openForm('work', tw || { date: today() }); };
     $('quickDuty').onclick = quickBasicDuty; $('homeQuickDuty').onclick=quickBasicDuty;
+    $('calendarToggle').onclick=function(){var panel=$('calendarPanel'),btn=$('calendarToggle'),open=panel.hidden;panel.hidden=!open;btn.setAttribute('aria-expanded',open?'true':'false');btn.textContent=tr(open?'hideCalendar':'showCalendar');};
     $('workPrev').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()-1,1);render();};$('workNext').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()+1,1);render();};
     $('workCalendar').addEventListener('click',function(e){var b=e.target.closest('[data-cal-date]');if(!b)return;var dt=b.getAttribute('data-cal-date'),rec=state.data.work.find(function(x){return x.date===dt;});if(rec)openForm('work',rec);else openForm('work',{date:dt,status:'worked',hours:state.settings.standard});});
     $('peopleList').addEventListener('click',function(e){var b=e.target.closest('[data-person]');if(b)openPerson(b.getAttribute('data-person'));});

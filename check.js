@@ -33,6 +33,6 @@ test('Receipt attachment is optional, locally stored and expandable',()=>{assert
 test('Historical records seeded idempotently',()=>{assert(app.includes('historic-remit-2026-08'));assert(app.includes('historic-gift-sohel-2026-09-15'));assert(app.includes('mst-history-import-v1'));});
 test('Compact UI and sticky header rules present',()=>{assert(css.includes('header{position:sticky'));assert(css.includes('.duty-toggle.done'));});
 test('No Rent setting is exposed in settings',()=>{assert(!html.includes('id="rentEnabled"'))});
-test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.4.0'"));assert(sw.includes("VERSION = '9.4.0'"))});
+test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.4.1'"));assert(sw.includes("VERSION = '9.4.1'"))});
 test('CSS is structurally balanced',()=>{assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length)});
 console.log(`\n${tests}/${tests} checks passed.`);

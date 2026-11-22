@@ -137,3 +137,11 @@ Known limitations in this build: weekly schedule program/OCR import, background 
 - Sticky menu/header, more compact typography, persistent people directory with Add New name picker.
 - Optional receipt image/PDF on money records; details are collapsed until opened. Files are device-local and included in backup.
 - Historical remittance and money-given amounts from the handoff are imported once; uncertain days are stored as month-precision, not invented.
+
+
+## v9.4.1 UI refinement
+- Compact professional layout and reduced card spacing.
+- Work section moved above Quick Actions in document layout.
+- Work calendar is collapsed by default and opens only on explicit tap.
+- Received and outstanding dashboard tiles replaced by a compact, non-interactive monthly income display; expense shortcut remains available.
+- Existing financial records, names, formulas, and calculation modules are unchanged.

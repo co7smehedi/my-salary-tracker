@@ -191,3 +191,42 @@ header h1{font-size:19px}.card{padding:13px;border-radius:18px;margin:9px 0}.car
 .duty-toggle{min-height:52px;border-radius:14px;font-size:15px;font-weight:700;background:#c83232;color:#fff;border:1px solid #a82424;transition:background .15s}.duty-toggle.done{background:#24884e;color:#fff;border-color:#1a6f3e}.duty-toggle.blocked{background:#393939;color:#aaa;border-color:#333}.duty-reason{display:block;min-height:15px;margin-top:4px;color:var(--muted);font-size:11px}.duty-card{margin-top:10px}
 .receipt-details{margin-top:6px;font-size:11px;color:var(--muted)}.receipt-details summary{cursor:pointer;display:inline-block;padding:4px 0}.receipt-details img,.receipt-preview{max-width:100%;max-height:360px;object-fit:contain;display:block;margin:8px auto;border-radius:10px}.directory-row{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding:7px 0;font-size:12px}.directory-row button{font-size:11px;padding:5px 8px;background:var(--surface2);border:1px solid var(--line);border-radius:8px;color:var(--text)}
 @media(max-width:430px){.card{padding:11px}.hero h2{font-size:29px}.quick{min-height:78px}.bottom-nav button span{font-size:22px}.bottom-nav button b{font-size:11px}}
+
+
+/* v9.4.1 professional compact UI refinement */
+.card{padding:10px;border-radius:15px;margin:7px 0;border-width:1px}
+.card h3{font-size:14px}
+.hero{padding:13px}
+.hero h2{font-size:27px;margin:5px 0}
+.quick-card h3,.recent-card h3,.balance-card h3{font-size:15px;margin-bottom:7px}
+.quick-grid{gap:6px}
+.quick{min-height:68px;padding:7px 4px;border-radius:12px;border-width:1px;gap:4px}
+.quick span{font-size:21px}
+.quick b{font-size:12px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:7px 0}
+.tiles .income-compact,.tiles .expense-compact{min-width:0;min-height:54px;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:var(--surface);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;text-align:left;color:var(--text)}
+.tiles .income-compact small,.tiles .expense-compact small{font-size:10px;color:var(--muted);font-weight:500}
+.tiles .income-compact b,.tiles .expense-compact b{font-size:16px;line-height:1.2;margin:0;color:var(--accent);font-variant-numeric:tabular-nums}
+.tiles .expense-compact{width:100%;cursor:pointer}
+.duty-toggle{min-height:36px!important;padding:7px 10px!important;border-radius:10px!important;font-size:12px!important;font-weight:600!important}
+.work-page .quick-duty{min-height:38px;margin:8px 0;padding:8px 10px;font-size:13px;border-radius:10px}
+.calendar-toggle{width:100%;min-height:34px;padding:7px 10px;margin:8px 0 4px;background:var(--surface2);color:var(--text);border:1px solid var(--line);border-radius:10px;text-align:left;font-size:12px;font-weight:600}
+#calendarPanel[hidden]{display:none!important}
+.work-calendar{margin:7px 0;padding:5px;gap:3px}
+.cal-day{min-height:36px;border-radius:8px;font-size:11px;padding:3px 1px}
+.cal-day small{font-size:8px}
+.work-legend{gap:6px 9px;margin:6px 0 8px}
+.work-stats>div{padding:8px;border-radius:11px}
+.work-stats b{font-size:15px}
+.work-month{margin:8px 0}
+.work-month strong{font-size:14px}
+@media(max-width:430px){
+ .card{padding:9px;margin:6px 0}
+ .hero{padding:12px}
+ .hero h2{font-size:26px}
+ .quick{min-height:64px}
+ .tiles .income-compact,.tiles .expense-compact{min-height:50px;padding:7px 9px}
+ .tiles .income-compact b,.tiles .expense-compact b{font-size:15px}
+ .duty-toggle{min-height:34px!important;font-size:11px!important}
+ .work-page .quick-duty{min-height:36px;font-size:12px}
+}

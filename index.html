@@ -25,11 +25,18 @@
 <div class="stats"><div><small data-t="worked">Worked days</small><b id="days">0</b></div><div><small data-t="ot">Overtime</small><b id="ot">0 h</b></div></div><p class="note" id="formula"></p></section>
 
 <div class="tiles">
-<button class="card" data-jump="payments"><small data-t="received">Received</small><b id="received">€0</b></button>
-<button class="card" id="dueTile" data-jump="payments"><small id="dueLbl" data-t="due">Outstanding</small><b id="due">€0</b></button>
-<button class="card" data-jump="expenses"><small data-t="expenses">Expenses</small><b id="expTotal">€0</b></button>
+<div class="income-compact" aria-live="off"><small id="incomeLabel">This month's income</small><b id="received">€0</b></div>
+<button type="button" class="card expense-compact" data-jump="expenses"><small data-t="expenses">Expenses</small><b id="expTotal">€0</b></button>
 </div>
 
+<section data-screen="work" id="work" class="card work-page">
+<div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small" aria-label="Add work">＋</button></div>
+<button id="quickDuty" class="primary full quick-duty">✅ <span data-t="quickDutyLabel">আজকের Basic Duty ১ ক্লিকে যোগ</span></button>
+<div class="work-month"><button id="workPrev" class="small" aria-label="Previous month">‹</button><strong id="workMonth"></strong><button id="workNext" class="small" aria-label="Next month">›</button></div>
+<div class="work-stats"><div><small data-t="worked">Worked days</small><b id="workDaysCount">0</b></div><div><small data-t="r_earned">Earned</small><b id="workMonthEarned">€0.00</b></div></div>
+<button id="calendarToggle" class="calendar-toggle" type="button" aria-expanded="false" aria-controls="calendarPanel">＋ Show calendar</button><div id="calendarPanel" hidden><div id="workCalendar" class="work-calendar" aria-label="Monthly work calendar"></div>
+<div class="work-legend"><span><i class="worked"></i><span data-t="st_worked">Worked</span></span><span><i class="rest"></i><span data-t="st_rest">Rest</span></span><span><i class="paid"></i><span data-t="st_paid_leave">Paid leave</span></span><span><i class="unpaid"></i><span data-t="st_unpaid_leave">Unpaid leave</span></span><span><i class="sick"></i><span data-t="st_sick_leave">Sick leave</span></span><span><i class="holiday"></i><span data-t="st_holiday">Holiday</span></span></div></div>
+<p id="dupWarn" class="note warnline" role="status" hidden></p><div id="workList"></div></section>
 <section id="quickActions" class="card quick-card"><h3 data-t="quickTitle">Quick Actions</h3><div class="quick-grid">
 <button type="button" class="quick" data-action="work"><span>🛠️</span><b data-t="qa_work">কাজ যোগ</b></button>
 <button type="button" class="quick" data-action="ot"><span>⏱️</span><b data-t="qa_ot">OT যোগ</b></button>
@@ -41,14 +48,7 @@
 <section class="card balance-card" id="balanceSummary"><div class="row"><h3 data-t="balanceTitle">Salary &amp; Expenses</h3><span id="balanceMonth" class="accent"></span></div><div class="balance-bar"><i id="balanceBar"></i></div><p class="note" data-t="balanceSub">Income, expenses and savings comparison</p><strong id="savings" class="savings"></strong></section>
 <section class="card duty-card"><div class="row"><h3 data-t="duty">Today's duty</h3><button id="record" class="secondary" data-t="record">＋ Record</button></div><p id="today"></p><button id="homeQuickDuty" class="duty-toggle full" type="button">আজকের ডিউটি করেছি</button><small id="dutyReason" class="duty-reason"></small></section>
 <section class="card recent-card" id="recentCard"><h3 data-t="recentTitle">Recent Transactions</h3><div id="recentList"></div></section>
-<section data-screen="work" id="work" class="card work-page">
-<div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small" aria-label="Add work">＋</button></div>
-<button id="quickDuty" class="primary full quick-duty">✅ <span data-t="quickDutyLabel">আজকের Basic Duty ১ ক্লিকে যোগ</span></button>
-<div class="work-month"><button id="workPrev" class="small" aria-label="Previous month">‹</button><strong id="workMonth"></strong><button id="workNext" class="small" aria-label="Next month">›</button></div>
-<div class="work-stats"><div><small data-t="worked">Worked days</small><b id="workDaysCount">0</b></div><div><small data-t="r_earned">Earned</small><b id="workMonthEarned">€0.00</b></div></div>
-<div id="workCalendar" class="work-calendar" aria-label="Monthly work calendar"></div>
-<div class="work-legend"><span><i class="worked"></i><span data-t="st_worked">Worked</span></span><span><i class="rest"></i><span data-t="st_rest">Rest</span></span><span><i class="paid"></i><span data-t="st_paid_leave">Paid leave</span></span><span><i class="unpaid"></i><span data-t="st_unpaid_leave">Unpaid leave</span></span><span><i class="sick"></i><span data-t="st_sick_leave">Sick leave</span></span><span><i class="holiday"></i><span data-t="st_holiday">Holiday</span></span></div>
-<p id="dupWarn" class="note warnline" role="status" hidden></p><div id="workList"></div></section>
+
 <div data-screen="money" id="moneyShortcuts" class="money-shortcuts"><button data-money-jump="payments">Salary</button><button data-money-jump="expenses">Expenses</button><button data-money-jump="remit">Remittance</button><button data-money-jump="gifts">Money given</button><button data-money-jump="people">People</button><button data-money-jump="backupSec">Backup</button></div>
 <section data-screen="money" id="payments" class="card"><div class="row"><h3 data-t="payments">Salary payments</h3><button id="addPayment" class="small" aria-label="Add">＋</button></div><p id="busLine" class="note"></p><div id="paymentList"></div></section>
 <section data-screen="money" id="expenses" class="card"><div class="row"><h3 data-t="expenses">Expenses</h3><button id="addExpense" class="small" aria-label="Add">＋</button></div><div id="expenseList"></div></section>
