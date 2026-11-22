@@ -12,6 +12,10 @@ function test(name,fn){fn();tests++;console.log('PASS',name)}
 test('Default wage settings',()=>{assert.equal(C.DEFAULTS.basic,25);assert.equal(C.DEFAULTS.standard,8);assert.equal(C.DEFAULTS.otRate,2.77)});
 test('8 hour basic duty earns exactly €25',()=>{const d=C.dayParts({status:'worked',hours:8},C.DEFAULTS);assert.equal(d.base,25);assert.equal(d.otPay,0);assert.equal(d.total,25)});
 test('9 hours includes one hour OT',()=>{const d=C.dayParts({status:'worked',hours:9},C.DEFAULTS);assert.equal(d.base,25);assert.equal(d.otHours,1);assert.equal(d.otPay,2.77);assert.equal(d.total,27.77)});
+test('€650 monthly basic over six days/week derives €25/day',()=>{const daily=650/(6*52/12);assert.equal(C.r2(daily),25);const d=C.dayParts({status:'worked',hours:10,basicRate:daily,standardHours:8,otRate:2.77});assert.equal(d.total,30.54);});
+test('Three duties plus two OT hours total €80.54',()=>{const data={work:[1,2,3].map((n)=>({date:'2026-11-0'+n,status:'worked',hours:n===3?10:8,basicRate:25,standardHours:8,otRate:2.77})),payments:[],expenses:[],remittances:[],gifts:[]};assert.equal(C.calcMonth(data,C.DEFAULTS,'2026-11').earned,80.54);});
+test('Actual BDT side of EUR gift is included in BDT report',()=>{const data={work:[],payments:[],expenses:[],remittances:[],gifts:[{date:'2026-08-20',person:'Riyad',currency:'EUR',amount:70,bdtActual:10000}]};const c=C.calcMonth(data,C.DEFAULTS,'2026-08');assert.equal(c.giftEur,70);assert.equal(c.giftBdt,10000);});
+
 test('10 hours includes two hours OT',()=>{const d=C.dayParts({status:'worked',hours:10},C.DEFAULTS);assert.equal(d.total,30.54)});
 test('Work rate snapshots protect historical calculation',()=>{const d=C.dayParts({status:'worked',hours:9,basicRate:24,standardHours:8,otRate:2.5},{basic:30,standard:10,otRate:4});assert.equal(d.total,26.5)});
 test('Bus allowance snapshot is used for month calculation',()=>{const data={work:[{date:'2026-11-01',status:'worked',hours:8,busAllowanceRate:40}],payments:[],expenses:[],remittances:[],gifts:[]};const c=C.calcMonth(data,{...C.DEFAULTS,bus:50},'2026-11');assert.equal(c.busDue,40)});
@@ -22,7 +26,13 @@ test('Work calendar and one-tap duty controls exist',()=>{['workCalendar','workM
 test('People profiles and rename dialog exist',()=>{['people','peopleList','peopleDlg','renamePerson','addPerson'].forEach(id=>assert(html.includes('id="'+id+'"'),id))});
 test('Edit and delete controls remain available',()=>{assert(app.includes('data-edit'));assert(app.includes('data-delete'));assert(html.includes('id="deleteBtn"'))});
 test('All main nav destinations are defined',()=>{['data-nav="top"','data-nav="work"','data-nav="quickActions"','data-nav="payments"','data-nav="reports"'].forEach(x=>assert(html.includes(x),x))});
+test('Home duty button has status text and disabled state handling',()=>{assert(app.includes('function dutyButtonState'));assert(app.includes('b.disabled=!!(rec&&status!==\'worked\')'));assert(html.includes('id=\"dutyReason\"'))});
+test('Salary setup uses monthly salary and workdays per week',()=>{assert(html.includes('id=\"salaryMonthly\"'));assert(html.includes('id=\"weeklyDays\"'));assert(app.includes('vals.basic = vals.salaryMonthly/(vals.weeklyDays*52/12)'));});
+test('People directory supports persistent names and selection',()=>{assert(app.includes('state.settings.people'));assert(app.includes('__add_person__'));assert(html.includes('id=\"personDirectory\"'));});
+test('Receipt attachment is optional, locally stored and expandable',()=>{assert(app.includes('receiptFile'));assert(app.includes('readDataUrl'));assert(app.includes('receipt-details'));assert(app.includes('5*1024*1024'));});
+test('Historical records seeded idempotently',()=>{assert(app.includes('historic-remit-2026-08'));assert(app.includes('historic-gift-sohel-2026-09-15'));assert(app.includes('mst-history-import-v1'));});
+test('Compact UI and sticky header rules present',()=>{assert(css.includes('header{position:sticky'));assert(css.includes('.duty-toggle.done'));});
 test('No Rent setting is exposed in settings',()=>{assert(!html.includes('id="rentEnabled"'))});
-test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.3.0'"));assert(sw.includes("VERSION = '9.3.0'"))});
+test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.4.0'"));assert(sw.includes("VERSION = '9.4.0'"))});
 test('CSS is structurally balanced',()=>{assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length)});
 console.log(`\n${tests}/${tests} checks passed.`);

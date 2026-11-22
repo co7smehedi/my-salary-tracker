@@ -39,8 +39,8 @@
 <button type="button" class="quick" data-action="gifts"><span>🎁</span><b data-t="qa_gift">অন্যদের দেওয়া</b></button>
 </div></section>
 <section class="card balance-card" id="balanceSummary"><div class="row"><h3 data-t="balanceTitle">Salary &amp; Expenses</h3><span id="balanceMonth" class="accent"></span></div><div class="balance-bar"><i id="balanceBar"></i></div><p class="note" data-t="balanceSub">Income, expenses and savings comparison</p><strong id="savings" class="savings"></strong></section>
+<section class="card duty-card"><div class="row"><h3 data-t="duty">Today's duty</h3><button id="record" class="secondary" data-t="record">＋ Record</button></div><p id="today"></p><button id="homeQuickDuty" class="duty-toggle full" type="button">আজকের ডিউটি করেছি</button><small id="dutyReason" class="duty-reason"></small></section>
 <section class="card recent-card" id="recentCard"><h3 data-t="recentTitle">Recent Transactions</h3><div id="recentList"></div></section>
-<section class="card"><div class="row"><h3 data-t="duty">Today's duty</h3><button id="record" class="secondary" data-t="record">＋ Record</button></div><p id="today"></p><button id="homeQuickDuty" class="primary full">✅ আজকের Basic Duty ১ ক্লিকে যোগ</button></section>
 <section data-screen="work" id="work" class="card work-page">
 <div class="row"><h3 data-t="workRecords">Work records</h3><button id="addWork" class="small" aria-label="Add work">＋</button></div>
 <button id="quickDuty" class="primary full quick-duty">✅ <span data-t="quickDutyLabel">আজকের Basic Duty ১ ক্লিকে যোগ</span></button>
@@ -54,7 +54,7 @@
 <section data-screen="money" id="expenses" class="card"><div class="row"><h3 data-t="expenses">Expenses</h3><button id="addExpense" class="small" aria-label="Add">＋</button></div><div id="expenseList"></div></section>
 <section data-screen="money" id="remit" class="card"><div class="row"><h3 data-t="remit">Remittance</h3><button id="addRemit" class="small" aria-label="Add">＋</button></div><p id="remitSummary" class="note"></p><div id="remitList"></div></section>
 <section data-screen="money" id="gifts" class="card"><div class="row"><h3 data-t="given">Money given</h3><button id="addGift" class="small" aria-label="Add">＋</button></div><p class="note" data-t="given_note"></p><div id="giftList"></div></section>
-<section data-screen="money" id="people" class="card"><div class="row"><h3 data-t="peopleTitle">People &amp; profiles</h3><button id="addPerson" class="small" aria-label="Add person">＋</button></div><p class="note" data-t="peopleNote">Individual totals, currencies kept separate</p><div id="peopleList"></div></section>
+<section data-screen="money" id="people" class="card"><div class="row"><h3 data-t="peopleTitle">People &amp; profiles</h3><button id="addPerson" class="small" aria-label="Add person">＋</button></div><p class="note" data-t="peopleNote">Individual totals, currencies kept separate</p><div id="peopleList"></div><div id="personDirectory"></div></section>
 
 <section data-screen="reports" id="reports" class="card"><h3 data-t="reports">Reports</h3>
 <div class="seg" role="group"><button id="rMonth" data-rtype="month" data-t="r_month">Month</button><button id="rYear" data-rtype="year" data-t="r_year">Year</button><button id="rAll" data-rtype="all" data-t="r_all">All time</button></div>
@@ -70,9 +70,11 @@
 <section data-screen="settings" id="settings" class="card"><h3 data-t="settings">Settings</h3><div class="settings">
 <label><span data-t="language">Language</span><select id="language"><option value="en">English</option><option value="bn">বাংলা</option><option value="tr">Türkçe</option><option value="bg">Български</option><option value="hi">हिन्दी</option><option value="el">Ελληνικά</option></select></label>
 <label><span data-t="theme">Appearance</span><select id="theme"><option value="auto" data-t="themeAuto">Automatic</option><option value="light" data-t="themeLight">Light</option><option value="dark" data-t="themeDark">Dark</option></select></label>
-<label><span data-t="s_basic">Daily wage (€)</span><input id="basic" type="number" inputmode="decimal" step="0.01" min="0"></label>
+<label><span>Monthly basic salary (€)</span><input id="salaryMonthly" type="number" inputmode="decimal" step="0.01" min="0"></label>
+<label><span>Work days per week</span><input id="weeklyDays" type="number" inputmode="numeric" step="1" min="1" max="7"></label>
+<label><span>Calculated daily basic (€)</span><input id="basic" type="number" inputmode="decimal" step="0.01" min="0" readonly></label>
 <label><span data-t="s_standard">Standard hours per day</span><input id="standard" type="number" inputmode="decimal" step="0.25" min="0" max="24"></label>
-<label><span data-t="s_ot">Overtime rate</span><input id="otRate" type="number" inputmode="decimal" step="0.01" min="0"></label>
+<label><span data-t="s_ot">Overtime rate (€ / hour)</span><input id="otRate" type="number" inputmode="decimal" step="0.01" min="0"></label>
 <label><span data-t="s_bus">Bus allowance per month</span><input id="bus" type="number" inputmode="decimal" step="0.01" min="0"></label>
 <label><span data-t="s_bonus">Remittance bonus %</span><input id="bonus" type="number" inputmode="decimal" step="0.1" min="0"></label>
 <span></span>

@@ -130,3 +130,10 @@ The only files that leave the app are the ones **you** export.
 - Version: 9.3.0. Data stores are unchanged; no user records are intentionally deleted.
 
 Known limitations in this build: weekly schedule program/OCR import, background reminder scheduling, and a full multi-currency report/dashboard have not been implemented. Browser/iPhone end-to-end interaction tests could not be run in this environment; see TEST-REPORT.md.
+
+## v9.4.0 update notes
+- Salary Settings: monthly basic and weekly days determine the daily base rate (e.g., €650 / 26 workdays = €25). Duty marking adds one day once; OT uses the configured hourly rate.
+- Home duty action has red/green/disabled states and a small status reason.
+- Sticky menu/header, more compact typography, persistent people directory with Add New name picker.
+- Optional receipt image/PDF on money records; details are collapsed until opened. Files are device-local and included in backup.
+- Historical remittance and money-given amounts from the handoff are imported once; uncertain days are stored as month-precision, not invented.

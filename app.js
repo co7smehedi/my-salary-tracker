@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.3.0';
+  var VERSION = '9.4.0';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts'];
   var LEGACY = 'workEntries';
@@ -106,8 +106,9 @@
   /* ---------- settings (localStorage) ---------- */
   function cleanSettings(raw) {
     var s = Object.assign({}, C.DEFAULTS), r = raw && typeof raw === 'object' ? raw : {};
-    ['basic', 'standard', 'otRate', 'bus', 'bonus'].forEach(function (k) { if (r[k] !== undefined && r[k] !== null && r[k] !== '' && Number.isFinite(Number(r[k])) && Number(r[k]) >= 0) s[k] = Number(r[k]); });
+    ['basic', 'standard', 'otRate', 'bus', 'bonus', 'salaryMonthly', 'weeklyDays'].forEach(function (k) { if (r[k] !== undefined && r[k] !== null && r[k] !== '' && Number.isFinite(Number(r[k])) && Number(r[k]) >= 0) s[k] = Number(r[k]); });
     ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { if (typeof r[k] === 'boolean') s[k] = r[k]; }); s.rentEnabled=false;
+    s.salaryMonthly = s.salaryMonthly || 650; s.weeklyDays = Math.max(1, Math.min(7, Math.round(s.weeklyDays || 6))); s.people = Array.isArray(r.people) ? r.people.filter(function(n){return typeof n==='string'&&n.trim();}).map(function(n){return n.trim();}) : ['Sohel','Mim','Ismail','Riyad'];
     if (I.LANGS.indexOf(r.language) >= 0) s.language = r.language;
     if (['auto', 'light', 'dark'].indexOf(r.theme) >= 0) s.theme = r.theme;
     return s;
@@ -179,7 +180,9 @@
   /* ---------- rendering ---------- */
   function row(title, sub, amount, kind, id) {
     var idt = typeof id === 'number' ? 'n' : 's';
-    return '<div class="entry"><div class="entry-main"><strong>' + safe(title) + '</strong><small>' + safe(sub || '') + '</small></div>' +
+    var rec=findRec(kind,id,idt), receipt=rec&&rec.receipt, receiptHtml='';
+    if(receipt&&receipt.data){var mime=receipt.type||'image/jpeg',src=receipt.data;receiptHtml='<details class="receipt-details"><summary>📎 Receipt / ফাইল দেখুন</summary>'+(mime.indexOf('image/')===0?'<img loading="lazy" alt="Receipt" src="'+safe(src)+'">':'<a href="'+safe(src)+'" target="_blank" rel="noopener">Open attached file</a>')+'</details>';}
+    return '<div class="entry"><div class="entry-main"><strong>' + safe(title) + '</strong><small>' + safe(sub || '') + '</small>'+receiptHtml+'</div>' +
       '<div class="entry-side"><strong>' + safe(amount) + '</strong><span class="entry-buttons"><button type="button" data-edit="' + kind + '" data-id="' + safe(id) + '" data-idt="' + idt + '">' + safe(tr('edit')) + '</button>' +
       '<button type="button" class="del" data-delete="' + kind + '" data-id="' + safe(id) + '" data-idt="' + idt + '">' + safe(tr('del')) + '</button></span></div></div>';
   }
@@ -189,6 +192,7 @@
     return null;
   }
   function byDateDesc(a, b) { return String(b.date || '').localeCompare(String(a.date || '')); }
+  function fmtRecordDate(x){return x&&x.datePrecision==='month'?fmtMonth(String(x.date||'').slice(0,7)):fmtDate(x&&x.date);}
   function designWords() {
     var maps = {
       en: {quick:'Quick Actions',work:'Add Work',ot:'Add OT',salary:'Salary',expense:'Expense',remit:'Send Home',gift:'Give Money',balance:'Salary & Expenses',balanceSub:'Income, expenses and savings comparison',recent:'Recent Transactions',add:'Add',home:'Home',money:'Money',saved:'Estimated savings'},
@@ -222,6 +226,21 @@
     list.sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''));});
     $('recentList').innerHTML=list.slice(0,5).map(function(x){return '<div class="recent-item"><span class="recent-icon">'+x.icon+'</span><span class="recent-name">'+safe(x.name)+'</span><span class="recent-amount '+(x.kind==='pos'?'positive':'negative')+'">'+(x.amount>=0?'+':'−')+safe(money(Math.abs(x.amount)))+'</span></div>';}).join('')||'<small class="empty">'+safe(tr('r_none'))+'</small>';
   }
+  function addPersonName(name){name=String(name||'').trim();if(!name)return;state.settings.people=state.settings.people||[];if(!state.settings.people.some(function(n){return n.toLocaleLowerCase()===name.toLocaleLowerCase();})){state.settings.people.push(name);persistSettings();}}
+  function renamePerson(oldName){if(!oldName)return;var newName=prompt('নতুন নাম লিখুন',oldName);if(!newName||!newName.trim()||newName.trim()===oldName)return;var target=newName.trim();state.settings.people=(state.settings.people||[]).map(function(n){return n.toLocaleLowerCase()===oldName.toLocaleLowerCase()?target:n;});var list=state.data.gifts.filter(function(g){return String(g.person||'').toLocaleLowerCase()===oldName.toLocaleLowerCase();});Promise.all(list.map(function(g){return put('gifts',Object.assign({},g,{person:target}));})).then(function(){persistSettings();state.personSelected=target;closeDlg('peopleDlg');refresh();toast('নাম আপডেট হয়েছে।');});}
+  function readDataUrl(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(){resolve(r.result);};r.onerror=function(){reject(r.error||new Error('file read failed'));};r.readAsDataURL(file);});}
+  async function importHistoricalOnce(){var key='mst-history-import-v1';if(localStorage.getItem(key))return;var entries=[
+    {store:'remittances',id:'historic-remit-2026-08',date:'2026-08-01',datePrecision:'month',recipient:'Family',amount:870,rate:127049/870,fee:0,bonus:0,actualBdt:127049,note:'Historical handoff; day unknown.'},
+    {store:'remittances',id:'historic-remit-2026-09',date:'2026-09-07',recipient:'Family',amount:870,rate:127049/870,fee:0,bonus:0,actualBdt:127049,note:'Historical handoff; actual BDT recorded.'},
+    {store:'remittances',id:'historic-remit-2026-10',date:'2026-10-01',datePrecision:'month',recipient:'Family',amount:600,rate:84870/600,fee:0,bonus:0,actualBdt:84870,note:'Historical handoff; day unknown.'},
+    {store:'remittances',id:'historic-remit-2026-11',date:'2026-11-01',datePrecision:'month',recipient:'Family',amount:820,rate:116128/820,fee:0,bonus:0,actualBdt:116128,note:'Historical handoff; day unknown.'},
+    {store:'gifts',id:'historic-gift-riyad-2026-08-20',date:'2026-08-20',person:'Riyad',currency:'EUR',amount:70,bdtActual:10000,note:'Historical handoff.'},
+    {store:'gifts',id:'historic-gift-sohel-2026-09-15',date:'2026-09-15',person:'Sohel',currency:'BDT',amount:7312,note:'Via Sohel/bKash; final recipient not confirmed.'},
+    {store:'gifts',id:'historic-gift-mim-2026-09-25',date:'2026-09-25',person:'Mim',currency:'BDT',amount:2000,note:'Historical handoff; EUR equivalent unknown.'},
+    {store:'gifts',id:'historic-gift-sohel-2026-09-29',date:'2026-09-29',person:'Sohel',currency:'BDT',amount:4274,note:'Via Sohel/bKash; final recipient not confirmed.'},
+    {store:'gifts',id:'historic-gift-ismail-2026-10-07',date:'2026-10-07',person:'Ismail',currency:'BDT',amount:1000,note:'Historical handoff.'},
+    {store:'gifts',id:'historic-gift-sohel-2026-10-07',date:'2026-10-07',person:'Sohel',currency:'BDT',amount:3783,note:'Historical handoff.'}
+  ];for(var i=0;i<entries.length;i++){var e=entries[i],list=state.data[e.store]||[];if(!list.some(function(x){if(x.id===e.id)return true;if(e.store==='gifts')return x.date===e.date&&String(x.person||'').toLowerCase()===String(e.person||'').toLowerCase()&&String(x.currency||'EUR').toUpperCase()===String(e.currency||'EUR').toUpperCase()&&Number(x.amount)===Number(e.amount)&&Number(x.bdtActual||0)===Number(e.bdtActual||0);return x.date===e.date&&String(x.recipient||'').toLowerCase()===String(e.recipient||'').toLowerCase()&&Number(x.amount)===Number(e.amount)&&Number(x.actualBdt||0)===Number(e.actualBdt||0);})){await put(e.store,e);}}state.settings.people=['Sohel','Mim','Ismail','Riyad'].concat(state.settings.people||[]).filter(function(n,i,a){return a.findIndex(function(x){return x.toLocaleLowerCase()===n.toLocaleLowerCase();})===i;});persistSettings();localStorage.setItem(key,'1');await loadAll();}
   function renderWorkCalendar() {
     var m = viewMonth(), y = +m.slice(0,4), mo = +m.slice(5,7)-1, first = new Date(y,mo,1), days = new Date(y,mo+1,0).getDate();
     var start = (first.getDay()+6)%7; // Monday first
@@ -231,10 +250,11 @@
     for(var d=1;d<=days;d++){var date=y+'-'+String(mo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');var rec=state.data.work.find(function(x){return x.date===date;});var status=rec?C.normStatus(rec.status):'none';var cl=status==='worked'?'worked':status==='rest'?'rest':status==='paid_leave'?'paid':status==='unpaid_leave'?'unpaid':status==='sick_leave'?'sick':status==='holiday'?'holiday':'';var isToday=date===today();cells+='<button type="button" class="cal-day '+cl+(isToday?' today':'')+'" data-cal-date="'+date+'" aria-label="'+safe(date+(rec?' '+statusLabel(rec.status):''))+'"><span>'+d+'</span>'+(rec?'<small>'+safe(status==='worked'?numFmt(rec.hours||0)+'h':statusLabel(status))+'</small>':'')+'</button>';}
     $('workCalendar').innerHTML=heads+cells; $('workMonth').textContent=fmtMonth(m); var total=C.calcMonth(state.data,state.settings,m);$('workDaysCount').textContent=total.workedDays;$('workMonthEarned').textContent=money(total.earned);
   }
-  function personGroups() {var map={};state.data.gifts.forEach(function(g){var name=String(g.person||'').trim();if(!name)return;var k=name.toLocaleLowerCase();if(!map[k])map[k]={name:name,eur:0,bdt:0,other:0,count:0,items:[]};var c=String(g.currency||'EUR').toUpperCase();if(c==='EUR')map[k].eur+=C.num(g.amount);else if(c==='BDT')map[k].bdt+=C.num(g.amount);else {map[k].other+=C.num(g.amount);map[k].currencies=map[k].currencies||{};map[k].currencies[c]=(map[k].currencies[c]||0)+C.num(g.amount);}map[k].count++;map[k].items.push(g);});return Object.keys(map).map(function(k){return map[k];}).sort(function(a,b){return a.name.localeCompare(b.name);});}
-  function renderPeople() {var groups=personGroups(),words={bn:'লেনদেন',en:'transactions',tr:'işlem',bg:'транзакции',hi:'लेन-देन',el:'συναλλαγές'};var word=words[lang()]||words.en;$('peopleList').innerHTML=groups.map(function(g){return '<button type="button" class="person-row" data-person="'+safe(g.name)+'"><strong>'+safe(g.name)+'</strong><span>'+money(g.eur)+' · '+numFmt(g.bdt)+' BDT</span><small>'+g.count+' '+safe(word)+'</small></button>';}).join('')||'<p class="empty">'+safe(tr('r_none'))+'</p>';}
+  function personGroups() {var map={};(state.settings.people||[]).forEach(function(name){var k=String(name).toLocaleLowerCase();if(name&&!map[k])map[k]={name:name,eur:0,bdt:0,other:0,count:0,items:[]};});state.data.gifts.forEach(function(g){var name=String(g.person||'').trim();if(!name)return;var k=name.toLocaleLowerCase();if(!map[k])map[k]={name:name,eur:0,bdt:0,other:0,count:0,items:[]};var c=String(g.currency||'EUR').toUpperCase();if(c==='EUR')map[k].eur+=C.num(g.amount);else if(c==='BDT')map[k].bdt+=C.num(g.amount);else {map[k].other+=C.num(g.amount);map[k].currencies=map[k].currencies||{};map[k].currencies[c]=(map[k].currencies[c]||0)+C.num(g.amount);}if(g.bdtActual)map[k].bdt+=C.num(g.bdtActual);map[k].count++;map[k].items.push(g);});return Object.keys(map).map(function(k){return map[k];}).sort(function(a,b){return a.name.localeCompare(b.name);});}
+  function renderPeople() {var groups=personGroups(),words={bn:'লেনদেন',en:'transactions',tr:'işlem',bg:'транзакции',hi:'लेन-देन',el:'συναλλαγές'};var word=words[lang()]||words.en;$('peopleList').innerHTML=groups.map(function(g){return '<button type="button" class="person-row" data-person="'+safe(g.name)+'"><strong>'+safe(g.name)+'</strong><span>'+money(g.eur)+' · '+numFmt(g.bdt)+' BDT</span><small>'+g.count+' '+safe(word)+'</small></button>';}).join('')||'<p class="empty">'+safe(tr('r_none'))+'</p>'; $('personDirectory').innerHTML='<p class="note">Saved people (add once, select later)</p>'+groups.map(function(g){return '<div class="directory-row"><span>'+safe(g.name)+'</span><button type="button" data-person-rename="'+safe(g.name)+'">Rename</button></div>';}).join('');}
   function openPerson(name) {var group=personGroups().find(function(g){return g.name.toLocaleLowerCase()===String(name).toLocaleLowerCase();});if(!group)return;state.personSelected=group.name;var extra=group.currencies?Object.keys(group.currencies).map(function(c){return '<div><small>'+safe(c)+' total</small><b>'+safe(numFmt(group.currencies[c]))+'</b></div>';}).join(''):'';$('personTitle').textContent=group.name;$('personProfile').innerHTML='<div class="person-totals"><div><small>EUR total</small><b>'+safe(money(group.eur))+'</b></div><div><small>BDT total</small><b>'+safe(numFmt(group.bdt))+' ৳</b></div><div><small>Transactions</small><b>'+group.count+'</b></div>'+extra+'</div>'+group.items.sort(byDateDesc).map(function(x){return row(fmtDate(x.date),x.note||'',money(x.amount,String(x.currency||'EUR').toUpperCase()),'gifts',x.id);}).join('');openDlg('peopleDlg');}
-  function quickBasicDuty() {var dt=today(),existing=state.data.work.find(function(x){return x.date===dt;});if(existing&&C.normStatus(existing.status)==='worked'){toast('আজকের Basic Duty ইতিমধ্যে যোগ করা আছে।');return;}if(existing){askConfirm('আজকের রেকর্ড পরিবর্তন করবেন?','আগের দিনের status-টি Worked হিসেবে বদলানো হবে।','Replace').then(function(ok){if(!ok)return;var rec=Object.assign({},existing,{status:'worked',hours:state.settings.standard});putWork(rec).then(refresh).then(function(){toast('আজকের Basic Duty যোগ হয়েছে।','Undo',function(){putWork(existing).then(refresh);});}).catch(function(e){toast(M('err_storage',null,': '+(e.message||e)));});});return;}var rec={id:uid(),date:dt,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,note:''};putWork(rec).then(refresh).then(function(){toast('আজকের Basic Duty যোগ হয়েছে।','Undo',function(){del('work',rec.id).then(refresh);});}).catch(function(e){toast(e&&e.dup?'আজকের কাজ আগেই রেকর্ড হয়েছে।':M('err_storage',null,': '+(e.message||e)));});}
+  function dutyButtonState(){var b=$('homeQuickDuty'),reason=$('dutyReason'),rec=state.data.work.find(function(x){return x.date===today();}),status=rec?C.normStatus(rec.status):null;b.disabled=!!(rec&&status!=='worked');b.classList.toggle('done',status==='worked');b.classList.toggle('blocked',b.disabled);b.textContent=status==='worked'?'✓ আজকের ডিউটি সম্পন্ন':b.disabled?'আজ ডিউটি নেই / ছুটি':'আজকে ডিউটি করেছি';reason.textContent=b.disabled?('আজকের অবস্থা: '+statusLabel(rec.status)+' — এই অবস্থায় Basic Salary যোগ হবে না।'):status==='worked'?'Basic Salary ইতিমধ্যে যোগ হয়েছে।':'';}
+  function quickBasicDuty() {var dt=today(),existing=state.data.work.find(function(x){return x.date===dt;});if(existing&&C.normStatus(existing.status)==='worked'){toast('আজকের Basic Duty ইতিমধ্যে যোগ করা আছে।');return;}if(existing){toast('আজকের রেকর্ডে '+statusLabel(existing.status)+' আছে। আগে Edit করে Worked করুন।');return;}var rec={id:uid(),date:dt,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,note:''};putWork(rec).then(refresh).then(function(){toast('আজকের Basic Duty ও Basic Salary যোগ হয়েছে।','Undo',function(){del('work',rec.id).then(refresh);});}).catch(function(e){toast(e&&e.dup?'আজকের কাজ আগেই রেকর্ড হয়েছে।':M('err_storage',null,': '+(e.message||e)));});}
 
   function render() {
     var s = state.settings, m = viewMonth(), c = C.calcMonth(state.data, s, m), d = state.data;
@@ -253,7 +273,7 @@
       ? tr('bus_line', { due: money(c.busDue), status: tr('bus_' + c.busStatus) }) + (c.busStatus === 'partial' ? ' · ' + tr('bus_left', { amount: money(c.busOutstanding) }) : '')
       : tr('bus_notdue');
     var tw = d.work.find(function (x) { return x.date === today(); });
-    $('today').textContent = tw ? statusLabel(tw.status) + (C.normStatus(tw.status) === 'worked' ? ' · ' + numFmt(tw.hours) + ' h' : '') : tr('notRecorded');
+    $('today').textContent = tw ? statusLabel(tw.status) + (C.normStatus(tw.status) === 'worked' ? ' · ' + numFmt(tw.hours) + ' h' : '') : tr('notRecorded'); dutyButtonState();
 
     var mo = function (x) { return String(x.date || '').slice(0, 7) === m; };
     $('workList').innerHTML = d.work.filter(mo).sort(byDateDesc).map(function (x) {
@@ -272,14 +292,14 @@
     $('remitSummary').textContent = money(c.remitEur) + ' · ' + tr('fee_lbl') + ' ' + money(c.remitFee) + ' · ' + tr('bdt') + ' ' + numFmt(c.remitBdt);
     $('remitList').innerHTML = d.remittances.filter(mo).sort(byDateDesc).map(function (x) {
       var q = C.remitParts(x);
-      return row(fmtDate(x.date) + ' · ' + (x.recipient || ''), tr('rate_lbl') + ' ' + numFmt(x.rate, 4) + ' · ' + tr('fee_lbl') + ' ' + money(q.fee) + ' · ' + tr('bonus_eur') + ' ' + money(q.bonusEur) + ' · ' + (q.actualBdt !== null ? tr('bdt') : tr('est_bdt')) + ' ' + numFmt(q.bdt), money(q.amount), 'remittances', x.id);
+      return row(fmtRecordDate(x) + ' · ' + (x.recipient || ''), tr('rate_lbl') + ' ' + numFmt(x.rate, 4) + ' · ' + tr('fee_lbl') + ' ' + money(q.fee) + ' · ' + tr('bonus_eur') + ' ' + money(q.bonusEur) + ' · ' + (q.actualBdt !== null ? tr('bdt') : tr('est_bdt')) + ' ' + numFmt(q.bdt), money(q.amount), 'remittances', x.id);
     }).join('') || '<small class="empty">' + safe(tr('empty_remit')) + '</small>';
     $('giftList').innerHTML = d.gifts.filter(mo).sort(byDateDesc).map(function (x) {
-      return row(fmtDate(x.date) + ' · ' + (x.person || ''), x.note || '', money(x.amount, String(x.currency || 'EUR').toUpperCase()), 'gifts', x.id);
+      return row(fmtRecordDate(x) + ' · ' + (x.person || ''), x.note || '', money(x.amount, String(x.currency || 'EUR').toUpperCase()), 'gifts', x.id);
     }).join('') || '<small class="empty">' + safe(tr('empty_gifts')) + '</small>';
     renderWorkCalendar(); renderPeople();
 
-    ['basic', 'standard', 'otRate', 'bus', 'bonus'].forEach(function (k) { if (document.activeElement !== $(k)) $(k).value = s[k]; });
+    ['basic', 'standard', 'otRate', 'bus', 'bonus', 'salaryMonthly', 'weeklyDays'].forEach(function (k) { if (document.activeElement !== $(k)) $(k).value = s[k]; });
     ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { $(k).checked = !!s[k]; });
     $('language').value = lang(); $('theme').value = s.theme;
     $('verLine').textContent = 'My Salary Tracker • ' + tr('ver') + ' ' + VERSION;
@@ -405,15 +425,15 @@
       var key = f[0], type = f[2], wrap = document.createElement('label'), span = document.createElement('span'), input;
       span.textContent = tr(f[1]); wrap.appendChild(span);
       var val = old[key];
-      if (type === 'status' || type === 'category' || type === 'currency') {
+      if (type === 'status' || type === 'category' || type === 'currency' || (kind==='gifts'&&key==='person')) {
         input = document.createElement('select');
-        var opts = type === 'status' ? C.STATUSES.map(function (k) { return [k, tr('st_' + k)]; }) : type === 'category' ? catKeys().map(function (k) { return [k, tr('cat_' + k)]; }) : [['EUR','EUR (€)'],['BDT','BDT (৳)'],['TRY','TRY (₺)'],['BGN','BGN (лв)'],['INR','INR (₹)'],['USD','USD ($)'],['GBP','GBP (£)']];
+        var opts = (kind==='gifts'&&key==='person') ? (state.settings.people||[]).map(function(n){return [n,n];}).concat([['__add_person__','＋ Add new person']]) : type === 'status' ? C.STATUSES.map(function (k) { return [k, tr('st_' + k)]; }) : type === 'category' ? catKeys().map(function (k) { return [k, tr('cat_' + k)]; }) : [['EUR','EUR (€)'],['BDT','BDT (৳)'],['TRY','TRY (₺)'],['BGN','BGN (лв)'],['INR','INR (₹)'],['USD','USD ($)'],['GBP','GBP (£)']];
         if (type === 'status' && val != null && C.normStatus(val)) val = C.normStatus(val);
         if (type === 'category' && val != null) { var lk = String(val).trim().toLowerCase(); if (T.en['cat_' + lk]) val = lk; if (val === 'rent' && opts.every(function (o) { return o[0] !== 'rent'; })) opts.push(['rent', tr('cat_rent')]); }
         if (type === 'currency' && val != null) val = String(val).toUpperCase();
         if (val != null && val !== '' && opts.every(function (o) { return o[0] !== val; })) opts.push([val, String(val) + ' ⚠']);   // keep unknown old values instead of losing them
         opts.forEach(function (o) { var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1]; input.appendChild(op); });
-        if (val == null || val === '') val = type === 'status' ? 'worked' : type === 'category' ? 'food' : 'EUR';
+        if (val == null || val === '') val = type === 'status' ? 'worked' : type === 'category' ? 'food' : (kind==='gifts'&&key==='person' ? (state.settings.people[0]||'') : 'EUR');
       } else {
         input = document.createElement('input'); input.type = type;
         if (type === 'number') { input.inputMode = 'decimal'; var a = f[4] || {}; Object.keys(a).forEach(function (n) { input.setAttribute(n, a[n]); }); }
@@ -422,7 +442,7 @@
       input.name = key; input.value = val; if (f[3]) input.required = true;
       wrap.appendChild(input); box.appendChild(wrap);
     });
-    $('deleteBtn').hidden = old.id === undefined; openDlg('editDialog');
+    if(['payments','expenses','remittances','gifts'].indexOf(kind)>=0){var rw=document.createElement('div');rw.className='receipt-field';var rs=document.createElement('span');rs.textContent='Optional receipt (photo/PDF, max 5 MB)';rw.appendChild(rs);var fi=document.createElement('input');fi.type='file';fi.name='receiptFile';fi.accept='image/*,application/pdf';rw.appendChild(fi);if(old.receipt){var details=document.createElement('details');details.innerHTML='<summary>Current receipt</summary>'+(String(old.receipt.type||'').indexOf('image/')===0?'<img class="receipt-preview" src="'+safe(old.receipt.data)+'" alt="Current receipt">':'<a href="'+safe(old.receipt.data)+'" target="_blank" rel="noopener">Open current file</a>');rw.appendChild(details);var rm=document.createElement('label');rm.className='check';var chk=document.createElement('input');chk.type='checkbox';chk.name='removeReceipt';var tx=document.createElement('span');tx.textContent='Remove current receipt';rm.appendChild(chk);rm.appendChild(tx);rw.appendChild(rm);}box.appendChild(rw);} $('deleteBtn').hidden = old.id === undefined; openDlg('editDialog');
   }
   function formVal(name) { var el = $('fields').querySelector('[name="' + name + '"]'); return el ? el.value.trim() : ''; }
   function numOrNull(v) { if (v === '') return null; var n = Number(v); return Number.isFinite(n) ? n : NaN; }
@@ -461,7 +481,7 @@
     }
     if (kind === 'gifts' && !v.person) return fail('err_amount');
     if (kind === 'expenses' && !v.category) v.category = 'other';
-    var record = Object.assign({}, old, v, { id: old.id || uid() }); if(kind==='work'){record.basicRate=old.basicRate===undefined?state.settings.basic:old.basicRate;record.standardHours=old.standardHours===undefined?state.settings.standard:old.standardHours;record.otRate=old.otRate===undefined?state.settings.otRate:old.otRate;record.busAllowanceRate=old.busAllowanceRate===undefined?state.settings.bus:old.busAllowanceRate;}
+    var record = Object.assign({}, old, v, { id: old.id || uid() }); var fileInput=$('fields').querySelector('[name=receiptFile]'); if(fileInput&&fileInput.files&&fileInput.files[0]){var f=fileInput.files[0];if(f.size>5*1024*1024)return fail('err_amount');record.receipt={name:f.name,type:f.type||'application/octet-stream',data:await readDataUrl(f)};}if($('fields').querySelector('[name=removeReceipt]')&&$('fields').querySelector('[name=removeReceipt]').checked)delete record.receipt;if(kind==='gifts')addPersonName(v.person); if(kind==='work'){record.basicRate=old.basicRate===undefined?state.settings.basic:old.basicRate;record.standardHours=old.standardHours===undefined?state.settings.standard:old.standardHours;record.otRate=old.otRate===undefined?state.settings.otRate:old.otRate;record.busAllowanceRate=old.busAllowanceRate===undefined?state.settings.bus:old.busAllowanceRate;}
     try {
       if (kind === 'work') await putWork(record); else await put(kind, record);
       closeDlg('editDialog'); state.edit = null;
@@ -674,7 +694,7 @@
     document.querySelectorAll('[data-money-jump]').forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-money-jump');document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});};});
     document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'||id==='language'?'settings':id==='work'?'work':'money');if(id==='people'||id==='backupSec'||id==='gifts'||id==='language'||id==='export')setTimeout(function(){var target=id==='language'?'settings':id==='export'?'backupSec':id;document.getElementById(target).scrollIntoView({behavior:'smooth',block:'start'});if(id==='language')document.getElementById('language').focus();},80); }; });
     $('aboutBtn').onclick = function () { closeDlg('menu'); openDlg('aboutDlg'); };
-    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot'){var old=state.data.work.find(function(x){return x.date===today();});openForm('work',old?Object.assign({},old,{status:'worked',hours:C.num(old.hours)+1}):{date:today(),status:'worked',hours:state.settings.standard+1});}else openForm(k);};});
+    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot'){var old=state.data.work.find(function(x){return x.date===today();});openForm('work',old?Object.assign({},old,{status:'worked',hours:(C.normStatus(old.status)==='worked'?C.num(old.hours):state.settings.standard)+1}):{date:today(),status:'worked',hours:state.settings.standard+1});}else openForm(k);};});
     document.querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){var target=b.getAttribute('data-nav');if(target==='quickActions'){openDlg('quickAddDialog');return;}switchView(target==='top'?'home':target==='work'?'work':target==='payments'?'money':target==='reports'?'reports':'home');};});
     document.addEventListener('click', function (e) {
       var cl = e.target.closest('.closeDlg'); if (cl) { var dd = cl.closest('dialog'); if (dd) { if (dd.close) dd.close(); else dd.removeAttribute('open'); } return; }
@@ -687,11 +707,11 @@
     $('workPrev').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()-1,1);render();};$('workNext').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()+1,1);render();};
     $('workCalendar').addEventListener('click',function(e){var b=e.target.closest('[data-cal-date]');if(!b)return;var dt=b.getAttribute('data-cal-date'),rec=state.data.work.find(function(x){return x.date===dt;});if(rec)openForm('work',rec);else openForm('work',{date:dt,status:'worked',hours:state.settings.standard});});
     $('peopleList').addEventListener('click',function(e){var b=e.target.closest('[data-person]');if(b)openPerson(b.getAttribute('data-person'));});
-    $('addPerson').onclick=function(){var name=prompt('নতুন ব্যক্তির নাম লিখুন।');if(name&&name.trim()){openForm('gifts',{date:defaultDate(),person:name.trim(),currency:'EUR'});}};
-    $('renamePerson').onclick=function(){if(!state.personSelected)return;var old=state.personSelected,newName=prompt('নতুন নাম লিখুন',old);if(!newName||!newName.trim()||newName.trim()===old)return;var target=newName.trim();var list=state.data.gifts.filter(function(g){return String(g.person||'').toLocaleLowerCase()===old.toLocaleLowerCase();});Promise.all(list.map(function(g){return put('gifts',Object.assign({},g,{person:target}));})).then(function(){closeDlg('peopleDlg');refresh();toast('নাম আপডেট হয়েছে।');});};
+    $('addPerson').onclick=function(){var name=prompt('নতুন ব্যক্তির নাম লিখুন।');if(name&&name.trim()){addPersonName(name.trim());renderPeople();openForm('gifts',{date:defaultDate(),person:name.trim(),currency:'EUR'});}};
+    $('renamePerson').onclick=function(){renamePerson(state.personSelected);}; $('personDirectory').addEventListener('click',function(e){var b=e.target.closest('[data-person-rename]');if(b)renamePerson(b.getAttribute('data-person-rename'));});
     $('addWork').onclick = function () { openForm('work'); }; $('addPayment').onclick = function () { openForm('payments'); }; $('addExpense').onclick = function () { openForm('expenses'); };
     $('addRemit').onclick = function () { openForm('remittances'); }; $('addGift').onclick = function () { openForm('gifts'); };
-    $('editForm').addEventListener('submit', saveForm);
+    $('editForm').addEventListener('submit', saveForm); $('fields').addEventListener('change',function(e){if(e.target.name==='person'&&e.target.value==='__add_person__'){var n=prompt('নতুন ব্যক্তির নাম লিখুন');if(n&&n.trim()){addPersonName(n.trim());var o=document.createElement('option');o.value=n.trim();o.textContent=n.trim();e.target.insertBefore(o,e.target.querySelector('[value=__add_person__]'));e.target.value=n.trim();}else e.target.value='';}});
     $('editDialog').addEventListener('close', function () { state.edit = null; });
     $('deleteBtn').onclick = async function () { if (state.edit && state.edit.id != null) { var k = state.edit.kind, rec = state.data[k].find(function (x) { return x.id === state.edit.id; }); closeDlg('editDialog'); await deleteRecord(k, rec); } };
     $('prev').onclick = function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); render(); };
@@ -701,10 +721,11 @@
     $('rNext').onclick = function () { if (state.rtype === 'month') { state.month = new Date(state.month.getFullYear(), state.month.getMonth() + 1, 1); render(); } else { state.ryear++; renderReport(); } };
     $('language').onchange = function () { state.settings.language = $('language').value; persistSettings(); render(); };
     $('theme').onchange = function () { state.settings.theme = $('theme').value; persistSettings(); render(); };
+    $('salaryMonthly').oninput=function(){var d=Number($('salaryMonthly').value),w=Number($('weeklyDays').value);$('basic').value=(d>0&&w>0)?(d/(w*52/12)).toFixed(2):'0';}; $('weeklyDays').oninput=function(){var d=Number($('salaryMonthly').value),w=Number(this.value);$('basic').value=(d>0&&w>0)?(d/(w*52/12)).toFixed(2):'0';};
     $('saveSettings').onclick = function () {
       var vals = {}, ok = true;
-      ['basic', 'standard', 'otRate', 'bus', 'bonus'].forEach(function (k) { var raw = $(k).value.trim(), n = Number(raw); if (raw === '' || !Number.isFinite(n) || n < 0) ok = false; vals[k] = n; });
-      if (vals.standard > 24) ok = false;
+      ['basic', 'standard', 'otRate', 'bus', 'bonus', 'salaryMonthly', 'weeklyDays'].forEach(function (k) { var raw = $(k).value.trim(), n = Number(raw); if (raw === '' || !Number.isFinite(n) || n < 0) ok = false; vals[k] = n; });
+      if (vals.standard > 24 || vals.weeklyDays<1 || vals.weeklyDays>7 || vals.weeklyDays%1!==0) ok = false; vals.basic = vals.salaryMonthly/(vals.weeklyDays*52/12);
       if (!ok) { setMsg('settingsMsg', M('err_settings')); return; }
       setMsg('settingsMsg', null); Object.assign(state.settings, vals);
       ['paidLeave', 'paidHoliday', 'sickPaid'].forEach(function (k) { state.settings[k] = $(k).checked; }); state.settings.rentEnabled=false;
@@ -730,7 +751,7 @@
   async function init() {
     loadSettings(); applyTheme(); bind(); render(); startClock();
     document.addEventListener('visibilitychange', function () { if (document.hidden) stopClock(); else startClock(); });
-    try { state.db = await openDB(); await loadAll(); await migrateLegacy(); }
+    try { state.db = await openDB(); await loadAll(); await migrateLegacy(); await importHistoricalOnce(); }
     catch (e) { state.dbError = e; toast(M('err_storage', null, ': ' + (e && e.message || e))); }
     render();
     initStorage().then(function () { renderBackupUi(); });

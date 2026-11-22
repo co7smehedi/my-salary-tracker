@@ -1,18 +1,27 @@
-# My Salary Tracker v9.3.0 — Test Report
+# My Salary Tracker v9.4.0 — Build / Test Report
 
-## Passed
-- JavaScript syntax check: app.js, calc.js, service-worker.js
-- 16 automated checks in `tests/check.js`
-- Calculation checks: 8-hour basic duty (€25), 9-hour/10-hour overtime, work and bus allowance snapshots, remittance fee/bonus, earned/received/outstanding/expense separation
-- Static checks: work calendar and quick duty controls, people profile UI, edit/delete controls, main navigation destinations, rent setting removed, version/cache, CSS brace balance
-- HTML ID uniqueness: no duplicate IDs
-- JavaScript DOM ID references: no missing app DOM IDs
-- ZIP integrity: to be checked at packaging
+Date: 22 Nov 2026
 
-## Not tested
-- Live browser/device interactions, iPhone Safari layout, IndexedDB write/edit/delete workflows, install/offline behavior. Chromium screenshot attempt failed in the execution environment.
+## Implemented in this build
+- Settings now expose monthly basic salary, weekly working days, standard hours, and OT/hour; daily basic is calculated from monthly salary ÷ (weekly days × 52 ÷ 12). €650 and 6 days/week calculate to €25/day.
+- Home duty button moved directly below the salary/balance summary. It is red before duty, green after marking, and disabled with a status note when today's record is a non-work status.
+- Sticky app header/Menu remains visible across secondary views.
+- Compact typography/card spacing.
+- Persistent people directory, add/rename names, and recipient dropdown with an Add New option.
+- Historical remittance and money-given records from the project handoff imported idempotently (only when explicitly requested in this conversation). Unknown remittance dates are stored with month precision and displayed as month, not a fabricated exact day.
+- Optional receipt image/PDF attachment on money records (5 MB per file); receipt details remain collapsed until tapped; included in local backup JSON.
+- Person profile includes separate EUR and BDT totals and monthly totals; BDT amount alongside EUR for Riyad retained separately.
+- Service-worker cache version bumped to 9.4.0.
 
-## Known incomplete features
-- Weekly schedule/program + OCR import
-- Background reminders (iOS PWA restrictions)
-- Complete multi-currency reporting/dashboard
+## Verification
+- JavaScript syntax: app.js, calc.js, service-worker.js — passed.
+- Calculation/static suite: 22/22 checks passed.
+- CSS brace balance — passed.
+- ZIP integrity — passed (no compressed-file errors).
+- Full real iPhone interaction test — not performed.
+- Headless Chromium attempt — environment timed out before rendering; not counted as a pass.
+
+## Known limitations
+- The current browser can restrict file attachments or local storage quota. Receipts are stored locally, not sent anywhere; export a backup regularly.
+- Monthly-precision historical transfers show a month, not an exact day.
+- Reminder notifications, OCR schedule import, fully translated added labels, and advanced profile editing remain future work.
