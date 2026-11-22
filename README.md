@@ -224,3 +224,10 @@ Country selection is independent from language. It changes the displayed currenc
 - Smaller, accented month navigation controls.
 - Dialogs focus the title, not date inputs, to avoid native date-picker popups opening automatically.
 - New remittance entries use editable approximate country exchange-rate defaults (Bangladesh: 140 BDT per EUR).
+
+
+## v9.5.14
+- Home dashboard income totals are always calculated for the current calendar month, independent of Work-page month navigation.
+- Historical work saves no longer jump the app month.
+- Today duty button becomes disabled whenever a record already exists for today.
+- Bulk work entry supports date ranges with a per-date selection preview and skips existing dates.

@@ -25,6 +25,14 @@
   }
   function isMonth(s) { return typeof s === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(s); }
 
+  // Inclusive local-calendar date range, avoiding UTC/time-zone day shifts.
+  function datesBetween(start, end, maxDays) {
+    if (!isDate(start) || !isDate(end) || end < start) throw new RangeError('Invalid date range');
+    var limit = maxDays == null ? 120 : Math.max(1, Math.floor(num(maxDays))), a = start.split('-').map(Number), b = end.split('-').map(Number), cur = new Date(a[0], a[1]-1, a[2]), last = new Date(b[0], b[1]-1, b[2]), out=[];
+    while (cur <= last) { out.push(dateKey(cur)); if (out.length > limit) throw new RangeError('Date range exceeds '+limit+' days'); cur.setDate(cur.getDate()+1); }
+    return out;
+  }
+
   // Older versions stored free text; map the common spellings, keep unknown values as null.
   function normStatus(s) {
     var k = String(s == null ? '' : s).trim().toLowerCase().replace(/[\s-]+/g, '_');
@@ -143,5 +151,5 @@
   }
 
   return { DEFAULTS: DEFAULTS, STATUSES: STATUSES, r2: r2, num: num, dateKey: dateKey, monthKeyOf: monthKeyOf, isDate: isDate, isMonth: isMonth,
-    normStatus: normStatus, dayParts: dayParts, remitParts: remitParts, calcMonth: calcMonth, calcPeriod: calcPeriod, monthsIn: monthsIn, isRent: isRent };
+    normStatus: normStatus, datesBetween: datesBetween, dayParts: dayParts, remitParts: remitParts, calcMonth: calcMonth, calcPeriod: calcPeriod, monthsIn: monthsIn, isRent: isRent };
 });

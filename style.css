@@ -275,3 +275,6 @@ dialog h3[tabindex="-1"]{outline:none}
 #bulkWorkDlg [hidden]{display:none!important}
 @media(prefers-reduced-motion:reduce){.quick{transition:none}.quick:active{transform:none}}
 #fields [hidden]{display:none!important}
+
+/* v9.5.14 range-based multi-date work entry */
+.bulk-preview{display:grid;gap:6px;max-height:32vh;overflow:auto;padding:8px;border:1px solid var(--border, #ddd);border-radius:12px}.bulk-date-check{display:flex!important;grid-template-columns:auto 1fr!important;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;background:var(--surface-2, rgba(127,127,127,.08))}.bulk-date-check input{width:auto!important;min-width:20px;min-height:20px}.bulk-date-check input:disabled{opacity:.45}
