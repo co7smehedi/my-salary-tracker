@@ -1,16 +1,23 @@
-# Test report — My Salary Tracker 9.7.1
+# Test report — My Salary Tracker 9.7.6
 
-## Independently run in this environment
-- JavaScript syntax checks: passed for app.js, service-worker.js, qa.test.js, and check.js.
-- Static checks: 57/57 passed (`node check.js`).
-- ZIP integrity: verified after packaging.
-- Flat ZIP structure: all app and test files at archive root; no nested folders.
+- Static checks: **68/68 passed** (`node check.js`).
+- JavaScript syntax: passed for app.js, profile.js, i18n.js, calc.js, and service-worker.js.
+- HTML ID scan: 261 IDs, no duplicates.
+- SVG symbol references: all referenced symbols resolve.
+- Local assets: all referenced local files exist.
+- CSS brace balance: passed.
+- ZIP integrity: passed after packaging.
+- Full automated suites (`npm test`): **not run successfully**; test harness cannot load missing `jsdom` dependency.
+- Manual browser/iPhone test: not performed.
 
-## Not independently run
-- `npm test` / functional test suites (db.test.js, profile.test.js, qa.test.js): not run. `npm install` timed out, and the dependencies jsdom and fake-indexeddb were not available.
-- Real-device browser testing on iPhone Safari or Android Chrome: not run.
+Changes: sticky header with app logo/name, immediate language buttons for Bengali/English/Greek/Bulgarian, six Quick Actions in 3 columns x 2 rows, five bottom tabs (Home, Work, centered Add, Money, Reports), matching grey clock/date padding, and tighter Home summary spacing.
 
-## Targeted v9.7.1 change
-Home monthly totals now use the current calendar month (`homeMonth` / `hc`) rather than the month selected for Work/Reports. The Home regression test was updated to navigate to previous/next month and assert current-month income, Tips and expenses remain unchanged. This test was added but not executed here because test dependencies could not be installed.
 
-Claude's previous QA report included additional test-run claims; those are not independently verified in this report.
+## v9.7.6 checks
+- Six SVG icons in Quick Add dialog: static verification.
+- Icon-above-label CSS layout: static verification.
+- Header fixed positioning, safe-area top offset and high z-index: static verification.
+- JavaScript syntax and static checks run for this build. Browser-level/iOS visual testing was not performed.
+
+
+Final static suite result for v9.7.6: 68/68 checks passed.

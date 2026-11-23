@@ -1,6 +1,42 @@
-# My Salary Tracker — version 9.7.1
+## v9.7.6 — Flag language switcher, six Quick Actions, five-tab nav, compact home
+- Sticky header now shows app logo/name, language flags (Bangla, English, Greek, Bulgarian) and Menu; tapping a flag switches language immediately.
+- Home Quick Actions restored to six buttons in a 3-column x 2-row grid.
+- Bottom navigation now has Home, Work, centered Add, Money, Reports.
+- Clock and date use matching grey pill padding; home summary spacing is tighter.
 
-## v9.7.1 — current-month Home totals correction
+- Home monthly savings amount shown in the open fourth summary tile, using current-month balance; an optional Settings checkbox hides/shows it.
+- Restored six Quick Actions: Add Work, Overtime, Salary, Expense, Send Home, Give Money. Tips remain accessible from the Tips tile’s plus button.
+- Bottom navigation now includes Money alongside Home, Work, centered Add and Reports.
+- Reports is a dedicated bottom-nav destination and menu shortcut.
+- App name/menu header remains sticky while scrolling across screens.
+
+## v9.7.4 — Home savings, Quick Actions, sticky header
+
+- Money page now groups Salary, Expenses, Remittance, Money Given, People & Profiles, Reports, Balance & Savings, and Recent Transactions in closed-by-default accordions.
+- Bottom navigation reduced to Home, Work, Add, Money; Quick Actions reduced to Add Work, Overtime, Expense, Tips.
+- Simplified menu; profile/account opens from Settings.
+- Remittance form previews BDT conversion with fee and bonus, and optional actual BDT override.
+- Money Given form supports exchange rate and optional actual BDT; estimated BDT is shown live, people selection has a blank placeholder, and missing person has a clear error.
+- People totals and reports include the gift BDT conversion estimate/actual.
+- Time/date padded grey blocks are balanced on both sides.
+
+## v9.7.3 — simplified navigation and compact Money page
+
+- Reduced bottom navigation to Home, Work, Add, and Money.
+- Quick Actions now contain Add Work, Overtime, Expense, and Tips only.
+- Money page consolidates Salary, Expenses, Remittance, Money Given, People, Reports, Balance, and Recent Transactions in closed-by-default accordions.
+- Removed the separate menu shortcuts for Reports, Remittance, Money Given, People, and Profile; Profile & Account is available in Settings.
+- Reduced menu items and compacted menu layout.
+- Clock and date use matching grey padded blocks, balanced on both sides.
+- All app/test files remain at ZIP root (flat package).
+
+# My Salary Tracker — version 9.7.6
+
+## v9.7.3 — Home duty income and total income
+
+Home main income now shows basic duty wages plus overtime (bus allowance and tips excluded). A compact “This month total income” line adds basic duty, OT and tips. Both figures use the current calendar month, independent of Work calendar selection.
+
+## v9.7.3 — current-month Home totals correction
 - v9.7.0 features retained: hourly pay, overtime, Tips, calendar multi-date Add Work, settings/menu navigation, and local backup/restore.
 - Home dashboard monthly totals (basic income, worked days, overtime, Tips, expense, and bus allowance) are now fixed to the current calendar month, regardless of the selected Work/Report month.
 - Work lists and reports continue to use the selected month. Today's Earnings continues to show today's total.
@@ -272,6 +308,18 @@ Country selection is independent from language. It changes the displayed currenc
 - Bulk work entry supports date ranges with a per-date selection preview and skips existing dates.
 
 
-## v9.7.1 correction
+## v9.7.3 correction
 - Home dashboard monthly totals (basic income, worked days, OT, tips, expenses and bus allowance) are fixed to the current calendar month, independent of the selected Work/Report month. Work lists and report views continue to follow the selected month.
 - Added a regression test for month isolation when navigating previous/next months.
+
+## v9.7.3 Home income display update
+- Main Home income is labeled **This Month's Duty Income** and equals Basic Duty wages + OT pay. Tips and bus allowance are excluded.
+- A compact **This month total income** line directly below the main amount equals Basic Duty wages + OT pay + Tips.
+- Both figures use the current calendar month, regardless of Work calendar month navigation.
+
+
+## v9.7.6 — Quick Add icon fix and fixed header
+- Restored visible local SVG icons in the Add modal for all six actions.
+- Add modal icons appear above each label in a compact 3×2 grid.
+- Header/menu is fixed to the viewport with safe-area support and remains accessible while scrolling.
+- All icons are bundled SVG symbols and work offline.

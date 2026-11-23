@@ -117,7 +117,7 @@
     out.expenses = r2(out.expenses); out.rentExcluded = r2(out.rentExcluded);
     r.forEach(function (x) { var q = remitParts(x); out.remitEur += q.amount; out.remitFee += q.fee; out.remitBonusEur += q.bonusEur; out.remitBdt += q.bdt; });
     out.remitEur = r2(out.remitEur); out.remitFee = r2(out.remitFee); out.remitBonusEur = r2(out.remitBonusEur); out.remitBdt = r2(out.remitBdt);
-    g.forEach(function (x) { var c = String(x.currency || 'EUR').toUpperCase(); if (c === 'EUR') out.giftEur += num(x.amount); else if (c === 'BDT') out.giftBdt += num(x.amount); else out.giftOther += num(x.amount); if (x.bdtActual) out.giftBdt += num(x.bdtActual); });
+    g.forEach(function (x) { var c = String(x.currency || 'EUR').toUpperCase(), a=num(x.amount); if (c === 'EUR') out.giftEur += a; else if (c === 'BDT') out.giftBdt += a; else out.giftOther += a; if(c!=='BDT'&&x.bdtActual)out.giftBdt+=num(x.bdtActual);else if(c!=='BDT'&&num(x.rate)>0)out.giftBdt+=a*num(x.rate); });
     out.giftEur = r2(out.giftEur); out.giftBdt = r2(out.giftBdt); out.giftOther = r2(out.giftOther);
     // cash left in EUR = money received - expenses - money sent home - money given (EUR)
     out.balance = r2(out.paymentsTotal - out.expenses - out.remitEur - out.giftEur);

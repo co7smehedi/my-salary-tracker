@@ -400,3 +400,93 @@ dialog .dialog-actions .primary,dialog .dialog-actions .secondary,dialog .dialog
 .aw-x{background:transparent;color:var(--muted);min-width:36px;min-height:36px;border-radius:10px;display:grid;place-items:center}
 @media(max-width:360px){.aw-day{min-height:40px;font-size:14px}.aw-fields{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){.aw-day{transition:none}}
+
+/* Home monthly total income (basic duty + OT + tips) */
+.home-total-income{display:block;margin:-2px 0 8px;font-size:11px;color:var(--muted)}.home-total-income b{color:var(--text);font-weight:700}
+/* v9.7.3 compact navigation and Money accordion */
+.money-accordion{display:block!important;margin:7px 0;border:1px solid var(--line);border-radius:15px;background:var(--surface);overflow:hidden;box-shadow:var(--shadow)}
+.money-accordion>summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;font-weight:650;font-size:14px;color:var(--text);background:var(--surface2);min-height:44px}
+.money-accordion>summary::-webkit-details-marker{display:none}
+.money-accordion>summary:after{content:'＋';font-size:17px;color:var(--accent);font-weight:700}
+.money-accordion[open]>summary:after{content:'−'}
+.money-accordion>section.card{border:0;box-shadow:none;border-radius:0;margin:0;padding:9px 12px 12px;background:transparent}
+.money-accordion-actions{justify-content:flex-end;min-height:30px;margin:0 0 5px}
+.money-accordion-actions h3{display:none!important}
+.money-accordion .note{margin:5px 0;font-size:12px}
+.money-accordion #balanceSummary,.money-accordion #recentCard{display:block!important}
+body[data-view="money"] #balanceSummary,body[data-view="money"] #recentCard{display:block!important}
+body[data-view="money"] #top>details[data-screen="money"]{display:block!important}
+body[data-view="home"] #balanceSummary,body[data-view="home"] #recentCard{display:none!important}
+body[data-view="home"] #moneyShortcuts{display:none!important}
+#quickActions .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+#quickActions .quick{min-height:68px;flex-direction:row;justify-content:flex-start;padding:10px 12px;gap:10px;text-align:left}
+#quickActions .quick span{width:38px;height:38px;display:grid;place-items:center;background:var(--surface2);border-radius:10px;flex:0 0 38px}
+#quickActions .quick svg{width:23px;height:23px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#quickActions .quick b{font-size:13px}
+.bottom-nav{grid-template-columns:repeat(4,1fr)}
+#clock{justify-content:space-between!important;gap:12px!important;padding:7px 12px!important}
+#clockTime,#clockDate{flex:0 1 46%;min-width:0;text-align:center;padding:5px 9px!important;background:var(--surface2)!important;border:1px solid var(--line);border-radius:10px!important}
+#clockTime{order:0;font-size:17px;font-weight:700;color:var(--accent);font-variant-numeric:tabular-nums}
+#clockDate{order:1;font-size:12px;color:var(--muted)}
+.menu-items{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.menu-items button{min-height:44px;padding:10px;font-size:13px}
+@media(max-width:380px){.money-accordion>summary{padding:10px 12px;font-size:13px}#quickActions .quick{padding:8px;gap:7px}#quickActions .quick b{font-size:12px}}
+.money-accordion:not([open])>section[data-screen="money"]{display:none!important}
+
+#openProfileSettings{grid-column:1/-1}
+.form-conversion-preview{display:flex;flex-direction:column;gap:3px;padding:9px 12px;margin:5px 0 8px;background:var(--surface2);border:1px solid var(--line);border-radius:12px}
+.form-conversion-preview small{color:var(--muted);font-size:11px}
+.form-conversion-preview strong{font-size:17px;color:var(--accent);font-variant-numeric:tabular-nums}
+/* v9.7.4: compact six-action grid, reports tab and persistent app header */
+#quickActions .quick-grid,#quickAddDialog .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.bottom-nav{grid-template-columns:repeat(4,minmax(0,1fr))}
+header{position:sticky;top:0;top:env(safe-area-inset-top,0px);z-index:30;background:var(--bg);box-shadow:0 2px 10px #00000008}
+#homeSavingsTile small{display:block}
+#showHomeSavings{accent-color:var(--accent)}
+
+/* v9.7.5: flag language controls, balanced clock pills, six quick actions, five-tab nav */
+header{display:flex;align-items:center;gap:7px;position:sticky;top:env(safe-area-inset-top,0px);z-index:40;padding:8px 2px 9px;margin:0 -2px;background:var(--bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 2px 12px #0000000a}
+header .brand{display:flex;align-items:center;gap:7px;flex:1;min-width:0}
+header .brand h1{font-size:clamp(15px,4.1vw,19px);line-height:1.1;margin:0;white-space:nowrap}
+.brand-tag{display:block;font-size:8px;letter-spacing:.8px;font-weight:700;color:var(--muted);margin-top:2px;white-space:nowrap}
+.header-languages{display:flex;align-items:center;gap:1px;flex-shrink:0}
+.lang-flag{display:grid;place-items:center;background:transparent;border:1px solid transparent;border-radius:8px;padding:3px 2px;min-width:27px;min-height:30px;font-size:18px;line-height:1}
+.lang-flag.active{background:var(--surface2);border-color:var(--line);box-shadow:inset 0 -2px var(--accent)}
+#menuBtn{min-width:36px;min-height:38px;width:38px;padding:5px;flex-shrink:0}
+.clock{align-items:stretch;gap:6px;padding:6px;background:var(--surface);border:1px solid var(--line)}
+#clockTime,#clockDate{display:flex;align-items:center;justify-content:center;background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:8px 10px;min-height:40px;line-height:1.15;box-sizing:border-box}
+#clockTime{flex:0 1 38%;font-size:15px;color:var(--accent);font-weight:700;white-space:nowrap}
+#clockDate{flex:1 1 58%;font-size:12px;text-align:center;white-space:normal;letter-spacing:0;color:var(--muted)}
+#quickActions .quick-grid,#quickAddDialog .quick-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+#quickActions .quick{min-height:88px;padding:8px 4px;gap:5px}
+#quickActions .quick span{display:grid;place-items:center;width:35px;height:35px;border-radius:10px;background:var(--surface2);color:var(--accent)}
+#quickActions .quick span .ic{width:22px;height:22px}
+#quickActions .quick b{font-size:12px;line-height:1.2}
+.bottom-nav{grid-template-columns:repeat(5,minmax(0,1fr));width:min(720px,calc(100vw - 18px));padding:7px 3px}
+.bottom-nav button{min-width:0}
+.bottom-nav button b{font-size:10px}
+.bottom-nav button span .ic{width:21px;height:21px}
+body .bottom-nav button.nav-add span{width:44px;height:44px;margin-top:-16px}
+.hero{padding:13px 14px}
+.hero .label{font-size:14px;line-height:1.3}
+.hero h2{font-size:30px;margin:4px 0 2px}
+.home-total-income{margin:0 0 7px;font-size:11px}
+.hero .stats{gap:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:5px 0 8px}
+.hero .stats div{padding:3px 6px;gap:1px}
+.hero .stats small{font-size:10px;line-height:1.2}
+.hero .stats b{font-size:16px}
+.hero .earnings-today{margin:7px 0 5px;padding:8px 10px;border-radius:12px}
+.hero .earnings-today .label{font-size:11px}
+.hero .earnings-today>strong{font-size:22px;margin:2px 0 4px}
+.earning-lines{gap:2px 7px;font-size:10px}
+.hero #formula{font-size:10px;margin:4px 0 0}
+@media(max-width:360px){header{gap:4px}.header-languages{gap:0}.lang-flag{min-width:24px;font-size:16px;padding:2px}#menuBtn{width:34px;min-width:34px}.brand-tag{display:none}#clockTime{flex-basis:35%;font-size:13px}#clockDate{font-size:11px;padding:7px 6px}#quickActions .quick{min-height:80px}#quickActions .quick b{font-size:11px}}
+
+/* v9.7.6: fixed header (menu remains reachable) + SVG quick-add icons */
+header{position:fixed!important;top:env(safe-area-inset-top,0px)!important;left:50%!important;transform:translateX(-50%);width:min(720px,calc(100vw - 28px));margin:0!important;padding:8px 2px 9px!important;z-index:100!important;background:var(--bg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 2px 12px #00000012;border-bottom:1px solid var(--line)}
+.app{padding-top:calc(14px + 56px)!important}
+#quickAddDialog .quick{min-height:88px;padding:8px 4px;gap:6px;flex-direction:column;align-items:center;justify-content:center}
+#quickAddDialog .quick span{display:grid;place-items:center;width:38px;height:38px;border-radius:11px;background:var(--surface2);color:var(--accent);font-size:0;line-height:0}
+#quickAddDialog .quick span .ic{width:23px;height:23px;display:block;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#quickAddDialog .quick b{font-size:12px;line-height:1.2;font-weight:500}
+@media(max-width:360px){.app{padding-top:calc(14px + 48px)!important}header{width:calc(100vw - 20px)}#quickAddDialog .quick span{width:34px;height:34px}#quickAddDialog .quick span .ic{width:21px;height:21px}}

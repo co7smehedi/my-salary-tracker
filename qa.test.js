@@ -40,9 +40,9 @@ test('Home income, tips, OT and expense always stay on the current month when Wo
   const a=await load();await a.D.putWork(W('c1',nowYM()+'-05',{hours:7}));await a.D.putWork(W('p1',prevYM()+'-05',{hours:8}));
   await a.D.put('tips',{id:'t1',date:nowYM()+'-05',amount:4});await a.D.put('tips',{id:'t2',date:prevYM()+'-05',amount:90});
   await a.D.put('expenses',{id:'e1',date:nowYM()+'-05',category:'food',amount:12});await a.D.put('expenses',{id:'e2',date:prevYM()+'-05',category:'food',amount:30});await a.D.refresh();
-  assert.equal(a.$('earned').textContent,'€21.88');assert.equal(a.$('expTotal').textContent,'€12.00');assert.equal(a.$('monthTipsIncome').textContent,'€4.00');assert.equal(a.$('earnedLbl').textContent,"This Month's Basic Income");
+  assert.equal(a.$('earned').textContent,'€21.88');assert.equal(a.$('homeTotalIncome').textContent,'€25.88');assert.equal(a.$('expTotal').textContent,'€12.00');assert.equal(a.$('monthTipsIncome').textContent,'€4.00');assert.equal(a.$('earnedLbl').textContent,"This Month's Duty Income");
   a.$('prev').click();await sleep(20);
-  assert.equal(a.$('earned').textContent,'€21.88');assert.equal(a.$('expTotal').textContent,'€12.00');assert.equal(a.$('monthTipsIncome').textContent,'€4.00');assert.equal(a.$('earnedLbl').textContent,"This Month's Basic Income");
+  assert.equal(a.$('earned').textContent,'€21.88');assert.equal(a.$('homeTotalIncome').textContent,'€25.88');assert.equal(a.$('expTotal').textContent,'€12.00');assert.equal(a.$('monthTipsIncome').textContent,'€4.00');assert.equal(a.$('earnedLbl').textContent,"This Month's Duty Income");
   a.$('next').click();await sleep(20);assert.equal(a.$('earned').textContent,'€21.88');assert.equal(a.$('expTotal').textContent,'€12.00');a.close();
 });
 test('Home blocks swapped: Today\'s Earnings sits inside the month card, Tips/Expense/OT tiles come after it',async()=>{
@@ -141,20 +141,21 @@ test('double tap: Tips, OT, expense/payment/gift/remittance form, quick duty nev
 });
 
 // ---------- navigation, menu, dialogs: every control leads somewhere that works ----------
-test('bottom navigation: Home/Work/Money/Reports buttons switch to the matching screen, no errors',async()=>{
+test('bottom navigation: Home/Work/Reports and Add dialog switch correctly, no errors',async()=>{
   const a=await load();const errs=[];a.w.addEventListener('error',e=>errs.push(e.message));
-  for(const [nav,view] of [['work','work'],['payments','money'],['reports','reports'],['top','home']]){const b=a.w.document.querySelector('.bottom-nav [data-nav="'+nav+'"]');assert.ok(b,nav);b.click();assert.equal(a.w.document.body.getAttribute('data-view'),view,nav)}
+  for(const [nav,view] of [['work','work'],['reports','reports'],['top','home']]){const b=a.w.document.querySelector('.bottom-nav [data-nav="'+nav+'"]');assert.ok(b,nav);b.click();assert.equal(a.w.document.body.getAttribute('data-view'),view,nav);if(view==='reports')assert.equal(a.$('reportsAccordion').open,true,'Reports accordion opens on Reports tab')}
+  const add=a.w.document.querySelector('.bottom-nav [data-nav="quickActions"]');assert.ok(add);add.click();assert.equal(a.$('quickAddDialog').hasAttribute('open'),true);assert.equal(a.w.document.querySelectorAll('#quickAddDialog [data-action]').length,6);
   assert.deepStrictEqual(errs,[]);a.close();
 });
-test('menu shortcuts reach real sections: Remittance, People, Money given, Profile, Backup, Settings, Reports, Home',async()=>{
+test('simplified menu reaches Money, Backup, Settings and Home',async()=>{
   const a=await load();const d=a.w.document;
-  for(const [t,id] of [['reports','reports'],['remit','remit'],['people','people'],['gifts','gifts'],['backupSec','backupSec'],['settings','settings']]){
+  for(const [t,id] of [['payments','payments'],['backupSec','backupSec'],['settings','settings']]){
     a.$('menuBtn').click();const b=d.querySelector('#menu [data-target="'+t+'"]');assert.ok(b,t);b.click();
     const el=d.getElementById(id);assert.ok(el,'section #'+id+' exists');const screen=el.closest('[data-screen]').getAttribute('data-screen');
     assert.equal(d.body.getAttribute('data-view'),screen,t+' opens the screen that contains it');assert.equal(el.hidden,false,t+' section visible');assert.equal(a.$('menu').hasAttribute('open'),false,'menu closed after '+t);
   }
   a.$('menuBtn').click();d.querySelector('#menu [data-target="top"]').click();assert.equal(d.body.getAttribute('data-view'),'home');
-  a.$('menuBtn').click();d.querySelector('#menu [data-target="profile"]').click();assert.equal(a.$('accountDlg').hasAttribute('open'),true);a.close();
+  a.$('menuBtn').click();d.querySelector('#menu [data-target="settings"]').click();a.$('openProfileSettings').click();assert.equal(a.$('accountDlg').hasAttribute('open'),true);a.close();
 });
 test('People: add a person (opens Money-given form for them), save, see their total, rename updates their records',async()=>{
   const a=await load();let answer='Rafi';a.w.prompt=()=>answer;const d=a.w.document;
@@ -166,7 +167,7 @@ test('People: add a person (opens Money-given form for them), save, see their to
 });
 test('every dialog can be opened and closed from its button without JS errors',async()=>{
   const a=await load();const errs=[];a.w.addEventListener('error',e=>errs.push(e.message));const d=a.w.document;
-  for(const sel of ['#menuBtn','#addTipsHome','#addWork','#bulkWork','.bottom-nav [data-nav=quickActions]','#menuAccount']){const id=sel;
+  for(const sel of ['#menuBtn','#addTipsHome','#addWork','#bulkWork','.bottom-nav [data-nav=quickActions]']){const id=sel;
     d.querySelector(sel).click();const open=[...d.querySelectorAll('dialog[open]')];assert.equal(open.length>=1,true,id+' opens a dialog');open.forEach(x=>x.close());assert.equal(d.querySelectorAll('dialog[open]').length,0,id+' closes');
   }
   assert.deepStrictEqual(errs,[]);a.close();
@@ -213,7 +214,7 @@ test('no duplicate ids in index.html; every $("id") exists; no emoji icons; serv
 test('Reports: Month / Year / All-time render with the correct earned total (wages + OT + bus allowance), no errors',async()=>{
   const a=await load();const errs=[];a.w.addEventListener('error',e=>errs.push(e.message));
   await a.D.putWork(W('w1',nowYM()+'-02',{hours:9}));await a.D.put('expenses',{id:'e',date:nowYM()+'-03',category:'food',amount:8});await a.D.refresh();
-  a.w.document.querySelector('[data-nav=reports]').click();
+  a.w.document.querySelector('[data-target=payments]').click();
   for(const id of ['rMonth','rYear','rAll']){a.$(id).click();await sleep(20);assert.ok(a.$('reports').textContent.length>50,id);assert.match(a.$('reports').textContent,/77\.77/,id+' shows earned 77.77 (25.00 wages + 2.77 OT + 50.00 bus allowance)');}
   assert.deepStrictEqual(errs,[]);a.close();
 });
