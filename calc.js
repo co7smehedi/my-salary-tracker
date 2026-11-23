@@ -50,12 +50,12 @@
     if (w && w.otRate !== undefined && Number.isFinite(Number(w.otRate))) s.otRate = Number(w.otRate);
     var status = normStatus(w && w.status), base = 0, otHours = 0, otPay = 0;
     if (status === 'worked') {
-      // New records can track basic hours and overtime separately. Legacy records
-      // without otExtraHours retain their original total-hours interpretation.
-      // A worked duty always earns the full basic daily rate. When the record
-      // has an explicit OT field, it is authoritative: do not infer OT again
-      // from the hours field (which may be the basic shift length).
-      base = num(s.basic);
+      // Basic pay is proportional to recorded hours up to the standard shift.
+      // Missing hours on legacy records mean a full standard shift.
+      var recordedHours = (w && w.hours !== undefined && w.hours !== null && w.hours !== '') ? Math.max(0, num(w.hours)) : num(s.standard);
+      var standard = Math.max(0, num(s.standard));
+      base = standard > 0 ? r2(num(s.basic) * Math.min(recordedHours, standard) / standard) : 0;
+      // Explicit OT is authoritative; otherwise derive OT from hours above standard.
       if (w && w.otExtraHours !== undefined && w.otExtraHours !== null && w.otExtraHours !== '') {
         otHours = Math.max(0, num(w.otExtraHours));
       } else {

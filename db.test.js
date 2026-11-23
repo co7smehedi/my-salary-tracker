@@ -2,7 +2,7 @@
 const test=require('node:test');const assert=require('assert');const fs=require('fs');const path=require('path');const vm=require('vm');
 const {load,seed,dump,sleep,FDB,ROOT}=require('./harness');
 const W=(id,date,extra)=>Object.assign({id,date,status:'worked',hours:8,basicRate:25,standardHours:8,otRate:2.77,busAllowanceRate:50,otExtraHours:0,tips:0,note:''},extra);
-const all6={work:[],payments:[],expenses:[],remittances:[],gifts:[],dutyPrograms:[],workEntries:[]};
+const all6={work:[],payments:[],expenses:[],remittances:[],gifts:[],dutyPrograms:[],workEntries:[],tips:[]};
 
 test('ROOT CAUSE: every $("id") used by app.js exists in index.html (missing #ot crashed render())',()=>{
   const app=fs.readFileSync(path.join(ROOT,'app.js'),'utf8'),html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8');
@@ -86,10 +86,11 @@ test('add work record; duplicate date refused and nothing overwritten',async()=>
   const d=await dump(a.idb);assert.equal(d.stores.work.length,1);assert.equal(d.stores.work[0].hours,10);a.close();
 });
 
-test('Home "Duty" quick button adds today\'s record through the real click handler',async()=>{
+test('Home "Duty" quick button asks for hours, then adds today\'s record once',async()=>{
   const a=await load();
-  a.$('homeQuickDuty').click();await sleep(150);
-  const d=await dump(a.idb);assert.equal(d.stores.work.length,1);assert.equal(d.stores.work[0].status,'worked');assert.match(a.$('homeQuickDuty').textContent,/✓/);
+  a.$('homeQuickDuty').click();assert.equal(a.$('quickDutyHoursDlg').hasAttribute('open'),true);assert.equal(a.$('quickDutyHours').value,'8');
+  a.$('saveQuickDutyHours').click();await sleep(200);
+  const d=await dump(a.idb);assert.equal(d.stores.work.length,1);assert.equal(d.stores.work[0].status,'worked');assert.equal(d.stores.work[0].hours,8);
   a.$('homeQuickDuty').click();await sleep(100);
   assert.equal((await dump(a.idb)).stores.work.length,1,'second tap does not create a second record');a.close();
 });
@@ -187,15 +188,15 @@ function makeSW(version){
   const run=async(t,ev)=>{let p;handlers[t](Object.assign(ev||{},{waitUntil:x=>{p=x},respondWith:x=>{p=x}}));return p};
   return {store,handlers,sandbox,fetchLog,run,setOnline:v=>{online=v}};
 }
-test('service worker: version 9.5.4 cache, install caches every core file that really exists',async()=>{
+test('service worker: version 9.7.0 cache, install caches every core file that really exists',async()=>{
   const s=makeSW();await s.run('install');
-  assert.ok(s.store.has('mst-v9-5-4'));
+  assert.ok(s.store.has('mst-v9-7-0'));
   const core=vm.runInContext('CORE',s.sandbox);for(const f of core){if(f==='./')continue;assert.ok(fs.existsSync(path.join(ROOT,f)),f)}
 });
 test('service worker: activate deletes OLD mst- caches (stale code cannot survive) but keeps unrelated caches',async()=>{
-  const s=makeSW();s.store.set('mst-v9-5-3',new Map());s.store.set('mst-v9-2',new Map());s.store.set('other-site',new Map());
+  const s=makeSW();s.store.set('mst-v9-6-4',new Map());s.store.set('mst-v9-2',new Map());s.store.set('other-site',new Map());
   await s.run('install');await s.run('activate');
-  assert.deepStrictEqual([...s.store.keys()].sort(),['mst-v9-5-4','other-site']);
+  assert.deepStrictEqual([...s.store.keys()].sort(),['mst-v9-7-0','other-site']);
 });
 test('service worker: network-first (online gets fresh app.js) and falls back to cache when offline',async()=>{
   const s=makeSW();await s.run('install');
@@ -208,5 +209,5 @@ test('service worker: network-first (online gets fresh app.js) and falls back to
 });
 test('version numbers agree everywhere',()=>{
   const app=fs.readFileSync(path.join(ROOT,'app.js'),'utf8'),sw=fs.readFileSync(path.join(ROOT,'service-worker.js'),'utf8');
-  assert.match(app,/VERSION = '9\.5\.4'/);assert.match(sw,/VERSION = '9\.5\.4'/);
+  assert.match(app,/VERSION = '9\.7\.0'/);assert.match(sw,/VERSION = '9\.7\.0'/);
 });

@@ -446,6 +446,32 @@
     saved_in:'Αποθηκεύτηκε στον μήνα {month}', dup_warn:'Υπάρχουν περισσότερες από μία εγγραφές εργασίας για: {dates}. Κάθε εγγραφή μετράει, οπότε ο μισθός που κερδήθηκε μπορεί να φαίνεται μεγαλύτερος. Διαγράψτε την επιπλέον εγγραφή.', clock_label:'Τρέχουσα ημερομηνία και ώρα', r_sec_salary:'Μισθός', r_sec_work:'Ημέρες εργασίας και υπερωρίες', r_sec_bus:'Επίδομα λεωφορείου (ξεχωριστά από τον μισθό)', r_sec_money:'Ροή χρημάτων', r_sec_monthly:'Ανάλυση ανά μήνα', r_sec_yearly:'Ανάλυση ανά έτος', r_none:'Δεν υπάρχουν εγγραφές για αυτή την περίοδο.', r_created:'Δημιουργήθηκε',
     r_hoursWorked:'Ώρες εργασίας'
   };
+
+  Object.assign(T.en, {
+    addWorkBtn: 'Add work', bulkLabel: 'Add many days',
+    pf_title: 'My Account', pf_manage: 'Profile & account', pf_noName: 'Add your name', pf_noNameHint: 'Tap Edit profile to add your name and photo',
+    pf_savedHint: 'Saved on this phone', pf_edit: 'Edit profile', pf_name: 'Full name', pf_add: 'Add photo', pf_change: 'Change photo', pf_remove: 'Remove photo',
+    pf_unsaved: 'Not saved yet. Tap Save to keep this photo.', pf_saved: 'Profile saved on this phone.',
+    pf_privacy: 'Your name and photo stay on this phone. They are never uploaded.',
+    pf_errPhoto: 'The photo could not be used.', pf_errQuota: 'Phone storage is full. The profile was not saved.', pf_errDenied: 'The browser blocked saving. Private Browsing cannot save a profile.', pf_errOther: 'The profile could not be saved. Nothing was changed.', pf_errRestore: 'Backup restored, but the profile in it could not be saved.',
+    pf_salaryTitle: 'Salary settings', pf_salary: 'Monthly basic salary', pf_days: 'Work days per week', pf_daily: 'Calculated daily basic', pf_saveSalary: 'Save salary settings',
+    pf_authTitle: 'Sign-in & cloud accounts', pf_notConfigured: 'Not configured',
+    pf_authBody: 'Email sign-in, password reset and Google sign-in need an authentication service that has not been set up. Nothing here can sign you in yet, so no sign-in buttons are shown. Backup and restore keep working on this phone.'
+  });
+  Object.assign(T.bn, {
+    addWorkBtn: 'কাজ যোগ করুন', bulkLabel: 'অনেক দিনের হিসাব',
+    pf_title: 'আমার অ্যাকাউন্ট', pf_manage: 'প্রোফাইল ও অ্যাকাউন্ট', pf_noName: 'আপনার নাম যোগ করুন', pf_noNameHint: 'নাম ও ছবি যোগ করতে প্রোফাইল সম্পাদনা চাপুন',
+    pf_savedHint: 'এই ফোনে সেভ করা আছে', pf_edit: 'প্রোফাইল সম্পাদনা', pf_name: 'পূর্ণ নাম', pf_add: 'ছবি যোগ করুন', pf_change: 'ছবি পরিবর্তন', pf_remove: 'ছবি মুছুন',
+    pf_unsaved: 'এখনও সেভ হয়নি। ছবিটি রাখতে সেভ চাপুন।', pf_saved: 'প্রোফাইল এই ফোনে সেভ হয়েছে।',
+    pf_privacy: 'আপনার নাম ও ছবি শুধু এই ফোনে থাকে। কোথাও আপলোড হয় না।',
+    pf_errPhoto: 'ছবিটি ব্যবহার করা যায়নি।', pf_errQuota: 'ফোনের স্টোরেজ ভরা। প্রোফাইল সেভ হয়নি।', pf_errDenied: 'ব্রাউজার সেভ করতে দেয়নি। প্রাইভেট ব্রাউজিংয়ে প্রোফাইল সেভ হয় না।', pf_errOther: 'প্রোফাইল সেভ করা যায়নি। কিছুই বদলায়নি।', pf_errRestore: 'ব্যাকআপ রিস্টোর হয়েছে, কিন্তু এর প্রোফাইল সেভ করা যায়নি।',
+    pf_salaryTitle: 'বেতনের সেটিংস', pf_salary: 'মাসিক মূল বেতন', pf_days: 'সপ্তাহে কাজের দিন', pf_daily: 'হিসাব করা দৈনিক বেতন', pf_saveSalary: 'বেতনের সেটিংস সেভ করুন',
+    pf_authTitle: 'সাইন-ইন ও ক্লাউড অ্যাকাউন্ট', pf_notConfigured: 'চালু করা হয়নি',
+    pf_authBody: 'ইমেইল সাইন-ইন, পাসওয়ার্ড রিসেট ও গুগল সাইন-ইনের জন্য একটি অথেনটিকেশন সার্ভিস লাগে, যা এখনও সেট করা হয়নি। তাই কোনো সাইন-ইন বোতাম দেখানো হচ্ছে না। ব্যাকআপ ও রিস্টোর এই ফোনেই কাজ করে।'
+  });
+
+  Object.assign(T.en, { aw_title: 'Add work', aw_hint: 'Tap the days you worked. Past days work too.', aw_today: 'Today', aw_past: 'Empty days up to today', aw_clear: 'Clear', aw_status: 'Status', aw_hours: 'Hours worked', aw_save: 'Save {n} day(s)', aw_none: 'Select at least one day.', aw_saved: '{n} day(s) saved.', aw_exists: 'A selected day already has a record. Tap that day in the calendar to edit it.' });
+  Object.assign(T.bn, { aw_title: 'কাজ যোগ করুন', aw_hint: 'যে দিনগুলোতে কাজ করেছেন সেগুলো চাপুন। আগের দিনও বেছে নিতে পারবেন।', aw_today: 'আজ', aw_past: 'আজ পর্যন্ত খালি দিন', aw_clear: 'মুছে দিন', aw_status: 'অবস্থা', aw_hours: 'কাজের ঘণ্টা', aw_save: 'সেভ করুন ({n} দিন)', aw_none: 'অন্তত একটি দিন বেছে নিন।', aw_saved: '{n} দিনের রেকর্ড সেভ হয়েছে।', aw_exists: 'বেছে নেওয়া কোনো দিনে আগেই রেকর্ড আছে। সেই দিনে চেপে সম্পাদনা করুন।' });
   var api = { T: T, LANGS: ['en', 'bn', 'tr', 'bg', 'hi', 'el'], LOCALES: { en: 'en-GB', bn: 'bn-BD-u-nu-latn', tr: 'tr-TR', bg: 'bg-BG', hi: 'hi-IN-u-nu-latn', el: 'el-GR' } };
   if (typeof module === 'object' && module.exports) module.exports = api; else root.MSTi18n = api;
 })(typeof self !== 'undefined' ? self : this);

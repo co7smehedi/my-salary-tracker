@@ -1,12 +1,12 @@
 'use strict';
 const assert=require('assert');
-const C=require('../calc.js');
-const I=require('../i18n.js');
+const C=require('./calc.js');
+const I=require('./i18n.js');
 const fs=require('fs');
-const html=fs.readFileSync('../index.html','utf8');
-const app=fs.readFileSync('../app.js','utf8');
-const css=fs.readFileSync('../style.css','utf8');
-const sw=fs.readFileSync('../service-worker.js','utf8');
+const html=fs.readFileSync('./index.html','utf8');
+const app=fs.readFileSync('./app.js','utf8');
+const css=fs.readFileSync('./style.css','utf8');
+const sw=fs.readFileSync('./service-worker.js','utf8');
 let tests=0;
 function test(name,fn){fn();tests++;console.log('PASS',name)}
 test('Default wage settings',()=>{assert.equal(C.DEFAULTS.basic,25);assert.equal(C.DEFAULTS.standard,8);assert.equal(C.DEFAULTS.otRate,2.77)});
@@ -26,40 +26,50 @@ test('Work calendar and one-tap duty controls exist',()=>{['workCalendar','workM
 test('People profiles and rename dialog exist',()=>{['people','peopleList','peopleDlg','renamePerson','addPerson'].forEach(id=>assert(html.includes('id="'+id+'"'),id))});
 test('Edit and delete controls remain available',()=>{assert(app.includes('data-edit'));assert(app.includes('data-delete'));assert(html.includes('id="deleteBtn"'))});
 test('All main nav destinations are defined',()=>{['data-nav="top"','data-nav="work"','data-nav="quickActions"','data-nav="payments"','data-nav="reports"'].forEach(x=>assert(html.includes(x),x))});
-test('Home duty button has status text and disabled state handling',()=>{assert(app.includes('function dutyButtonState'));assert(app.includes('b.disabled=!!(rec&&status!==\'worked\')'));assert(html.includes('id=\"dutyReason\"'))});
+test('Two daily buttons lock after one choice and Settings edit is present',()=>{assert(app.includes('function dutyButtonState'));assert(app.includes('yes.disabled=locked;no.disabled=locked'));assert(html.includes('id=\"homeQuickDuty\"'));assert(html.includes('id=\"homeQuickNoDuty\"'));assert(html.includes('id=\"editTodayStatus\"'));assert(html.includes('id=\"dutyReason\"'));assert(!html.includes('id=\"record\"'))});
 test('Salary setup uses monthly salary and workdays per week',()=>{assert(html.includes('id=\"salaryMonthly\"'));assert(html.includes('id=\"weeklyDays\"'));assert(app.includes('vals.basic = vals.salaryMonthly/(vals.weeklyDays*52/12)'));});
 test('People directory supports persistent names and selection',()=>{assert(app.includes('state.settings.people'));assert(app.includes('__add_person__'));assert(html.includes('id=\"personDirectory\"'));});
 test('Receipt attachment is optional, locally stored and expandable',()=>{assert(app.includes('receiptFile'));assert(app.includes('readDataUrl'));assert(app.includes('receipt-details'));assert(app.includes('5*1024*1024'));});
 test('Fresh installs contain no hard-coded personal transaction records',()=>{assert(!app.includes('historic-remit-2026-08'));assert(!app.includes('historic-gift-sohel-2026-09-15'));assert(app.includes('Fresh installs start empty'));});
 test('Compact UI and sticky header rules present',()=>{assert(css.includes('header{position:sticky'));assert(css.includes('.duty-toggle.done'));});
-test('v9.5.9 country selector and currency display are independent of language',()=>{assert(html.includes('id=\"country\"'));assert(app.includes('state.settings.country=this.value'));assert(html.includes('id=\"language\"'));});
+test('v9.7.x country selector and currency display are independent of language',()=>{assert(html.includes('id=\"country\"'));assert(app.includes('state.settings.country=this.value'));assert(html.includes('id=\"language\"'));});
 test('Menu close button and account salary settings are present',()=>{assert(html.includes('id=\"menuClose\"'));assert(html.includes('account-salary'));assert(!html.includes('data-target=\"language\"'));});
 test('Tips dialog has no autofocus-triggering amount input',()=>{assert(!html.includes('tipAmount') || !html.includes('autofocus'));});
 test('No Rent setting is exposed in settings',()=>{assert(!html.includes('id="rentEnabled"'))});
-test('Version and cache updated',()=>{assert(app.includes("VERSION = '9.5.9'"));assert(sw.includes("VERSION = '9.5.9'"))});
+test('Version and cache updated, tagline removed',()=>{assert(app.includes("VERSION = '9.7.1'"));assert(sw.includes("VERSION = '9.7.1'"));assert(!html.includes('PRIVATE • OFFLINE FIRST'));});
 test('Today duty section is positioned immediately before Quick Actions',()=>{const duty=html.indexOf('class="card duty-card"'),quick=html.indexOf('id="quickActions"');assert(duty>=0&&quick>=0&&duty<quick);assert(quick-duty<600);});
 test('Opening any edit form closes the calendar instead of auto-showing it',()=>{assert(app.includes('function openForm(kind, old) {\n    if (!state.dbReady'));assert(app.includes('closeWorkCalendar();'));assert(html.includes('id="calendarPanel" hidden'));});
 test('CSS is structurally balanced',()=>{assert.equal((css.match(/\{/g)||[]).length,(css.match(/\}/g)||[]).length)});
-test('Basic duty pays the full daily rate even if recorded hours are shorter',()=>{const d=C.dayParts({status:'worked',hours:4,otExtraHours:0},C.DEFAULTS);assert.equal(d.base,25);assert.equal(d.total,25)});
-test('Basic duty, manual overtime and tips remain separate',()=>{const d=C.dayParts({status:'worked',hours:4,otExtraHours:2,tips:3},C.DEFAULTS);assert.equal(d.base,25);assert.equal(d.otPay,5.54);assert.equal(C.r2(d.base+d.otPay+3),33.54)});
+test('Basic pay is proportional to shorter recorded hours (7h = €21.88)',()=>{const d=C.dayParts({status:'worked',hours:7,otExtraHours:0},C.DEFAULTS);assert.equal(d.base,21.88);assert.equal(d.total,21.88)});
+test('Short duty, manual overtime and tips remain separate',()=>{const d=C.dayParts({status:'worked',hours:4,otExtraHours:2,tips:3},C.DEFAULTS);assert.equal(d.base,12.5);assert.equal(d.otPay,5.54);assert.equal(C.r2(d.base+d.otPay+3),21.04)});
 test('Duty program remains phone-local and backed up',()=>{assert(app.includes("'dutyPrograms'"));assert(html.includes('id=\"menuDutyProgram\"'));assert(html.includes('id=\"programPhoto\"'));assert(html.includes('id=\"programHistory\"'))});
-test('New home income panels and schedule preview exist',()=>{['todayEarnings','todayBreakdown','monthOtIncome','monthTipsIncome','schedulePeek'].forEach(id=>assert(html.includes('id=\"'+id+'\"'),id))});
+test('Home main summary contains income, expenses, OT, tips and schedule preview',()=>{['todayEarnings','todayBreakdown','monthOtIncome','monthTipsIncome','tipsMonthIncome','expTotal','schedulePeek'].forEach(id=>assert(html.includes('id=\"'+id+'\"'),id));assert(html.includes('home-main-totals'));assert(!html.includes('class=\"tiles\"'));assert(!html.includes('class=\"extra-income\"'));});
 test('Camera and Photo Library picker enabled without camera-only capture',()=>{assert(html.includes('accept="image/*"'));assert(!html.includes('capture="environment"'));assert(html.includes('Camera or Photo Library'));});
-test('Quick Action labels translated in all supported languages',()=>{assert(app.includes("['qa_work','qa_ot','qa_salary','qa_expense','qa_remit','qa_gift']"));assert(app.includes("bn:['কাজ যোগ','OT যোগ'"));});
-test('Duty hours field hidden when status is not worked',()=>{assert(app.includes("data-work-hours-field"));assert(app.includes("statusEl.value!=='worked'"));});
+test('Quick Action overtime label uses Overtime',()=>{assert(app.includes("['qa_work','qa_ot','qa_salary','qa_expense','qa_remit','qa_gift']"));assert(app.includes("bn:['কাজ যোগ','Overtime'"));assert(html.includes('data-t=\"qa_ot\">Overtime'));});
+test('Duty hours field hidden when status is not worked',()=>{assert(app.includes("data-work-hours-field"));assert(app.includes("statusEl.value==='worked'"));});
 test('Storage usage/quota null values handled safely',()=>{assert(app.includes("e && e.usage != null ? e.usage : null"));assert(app.includes("e && e.quota != null ? e.quota : null"));});
 test('IndexedDB blocked upgrade has a finite timeout and closes late connections',()=>{assert(app.includes('Database upgrade is blocked by another app tab'));assert(app.includes('if (settled) { if (db) db.close(); return; }'));});
 test('Database writes guard missing connection with readable error',()=>{assert(app.includes('Local database is not ready. Retry database connection.'));});
 test('Database startup has a visible Retry banner and blocks writes until ready',()=>{assert(html.includes('id=\"dbBanner\"'));assert(html.includes('id=\"dbRetry\"'));assert(app.includes('state.dbReady = false'));assert(app.includes('initializeDatabase'));assert(app.includes('Database upgrade is blocked by another app tab'));});
 test('Balance and Recent panels now have working detail navigation and populated summaries',()=>{assert(html.includes('id=\"balanceDetails\"'));assert(html.includes('id=\"recentDetails\"'));assert(app.includes("switchView('reports')"));assert(app.includes("switchView('money')"));assert(app.includes('balanceBreakdown'));});
-console.log(`\n${tests}/${tests} checks passed.`);
 
 test('Bus allowance is added to monthly earned total',()=>{const data={work:[{date:'2026-11-01',status:'worked',hours:8}],payments:[],expenses:[],remittances:[],gifts:[]};const c=C.calcMonth(data,{...C.DEFAULTS,bus:60},'2026-11');assert.equal(c.earned,85);assert.equal(c.busDue,60);assert.equal(c.outstanding,85);});
 test('Home Tips quick add button exists and backup section is menu-hidden',()=>{assert(html.includes('id=\"addTipsHome\"'));assert(/id=\"backupSec\"[^>]*hidden/.test(html));assert(!html.includes('data-money-jump=\"backupSec\"'));});
 
 test('Backup section hidden by CSS when hidden attribute is set',()=>{assert(css.includes('#backupSec[hidden]{display:none!important}'));});
-test('v9.5.9 compact month buttons and clock spacing',()=>{assert(css.includes('#clockDate,#clockTime'));assert(css.includes('.month button{width:30px'));assert(css.includes('.month strong{'));});
+test('v9.6.3 clock balances time and date across the row',()=>{assert(css.includes('#clockDate,#clockTime'));assert(css.includes('#clock{justify-content:space-between!important'));assert(css.includes('.month button{width:30px'));assert(css.includes('.month strong{'));});
 test('Dialogs focus heading, not native date controls',()=>{assert(app.includes('function openDlg(id)'));assert(app.includes('h.focus({preventScroll:true})'));});
 test('Bangladesh remittance exchange rate defaults to 140',()=>{assert(app.includes('BD:140'));assert(app.includes('rate: ({CY:1,BD:140'));});
 test('OT quick action uses a dedicated OT-only dialog, not basic duty hours form',()=>{assert(html.includes('id=\"otDialog\"'));assert(html.includes('id=\"otHoursAdd\"'));assert(app.includes('saveOt'));assert(!app.includes('openForm(\'work\',old?Object.assign({},old,{status:\'worked\',hours:baseHours,otExtraHours:priorOt+1}'))});
 test('Tips dialog does not autofocus date picker',()=>{assert(html.includes('id=\"tipAmount\"')&&!html.includes('autofocus'));assert(html.includes('id=\"tipDate\"'));});
+
+test('Bulk entry supports per-date status and atomic batch save',()=>{assert(app.includes('bulk-date-row'));assert(app.includes('bulk-row-status'));assert(app.includes('putWorkBatch(records)'));assert(app.includes('tx.abort()'))});
+test('Expanded currency list includes additional ISO codes',()=>{['XOF','XAF','DZD','RSD','ETB','TZS','UGX','KZT','KRW','XPF','TWD','FKP','LBP','MOP','SBD'].forEach(c=>assert(app.includes("['"+c+"','"+c+"']"),c))});
+test('Home monthly figures use current month hc instead of selected month c',()=>{assert(app.includes("$('earned').textContent = money(hc.wages)"));assert(app.includes("$('expTotal').textContent = money(hc.expenses)"));assert(app.includes("$('monthTipsIncome').textContent=money(hc.tips)"));});
+test('Home income mini-box removed and Tips moved into its position',()=>{assert(!html.includes('id=\"received\"'));assert(html.includes('class=\"home-tips\"'));assert(html.includes('id=\"tipsMonthIncome\"'));});
+test('Worked-today popup contains only hours field, no date or status',()=>{assert(html.includes('id=\"quickDutyHoursDlg\"'));assert(html.includes('id=\"quickDutyHours\"'));assert(app.includes('function saveQuickDutyHours'));assert(app.includes('quickToday(\'worked\',hours)'));});
+test('Tip entry saves into separate local tips store',()=>{assert(app.includes('function putTip'));assert(app.includes('objectStore(\'tips\').put(rec)'));assert(html.includes('id=\"saveTip\"'));});
+
+test('Menu shortcuts navigate to Remittance, Money Given, People and Profile',()=>{['data-target=\"remit\"','data-target=\"gifts\"','data-target=\"people\"','data-target=\"profile\"'].forEach(x=>assert(html.includes(x),x));assert(app.includes("id==='profile'"));assert(app.includes("indexOf(id)>=0)setTimeout"));});
+console.log(`\n${tests}/${tests} checks passed.\n`);
+

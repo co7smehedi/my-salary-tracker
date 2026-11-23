@@ -1,1 +1,7 @@
-{"name":"mst-tests","private":true,"scripts":{"test":"node --test --test-force-exit db.test.js && node check.js"},"devDependencies":{"jsdom":"^26","fake-indexeddb":"^6"}}
+{
+  "name": "my-salary-tracker-tests",
+  "version": "9.7.1",
+  "private": true,
+  "scripts": {"test": "node --test --test-force-exit db.test.js profile.test.js qa.test.js && node check.js"},
+  "devDependencies": {"jsdom": "^26", "fake-indexeddb": "^6"}
+}

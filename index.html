@@ -15,36 +15,64 @@
 <link rel="stylesheet" href="./style.css">
 <title>My Salary Tracker</title></head>
 <body data-view="home">
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></symbol>
+<symbol id="i-work" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><circle cx="16.5" cy="15" r="1"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-5.5 7-5.5s7 2 7 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 15c2.5.6 4 2.2 4 5"/></symbol>
+<symbol id="i-gift" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M5 12v8h14v-8M12 8v12M12 8H8a2.5 2.5 0 1 1 0-5c2 0 4 5 4 5zm0 0h4a2.5 2.5 0 1 0 0-5c-2 0-4 5-4 5z"/></symbol>
+<symbol id="i-swap" viewBox="0 0 24 24"><path d="M7 4v14M3 14l4 4 4-4M17 20V6M13 10l4-4 4 4"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14-4M4 4v4h4M4 13a8 8 0 0 0 14 4M20 20v-4h-4"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v12H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+<symbol id="i-receipt" viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M3 11l18-7-7 18-3-8z"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+<symbol id="i-avatar" viewBox="0 0 64 64"><rect width="64" height="64" fill="currentColor" opacity=".14"/><circle cx="32" cy="25" r="11" fill="currentColor" opacity=".55"/><path d="M10 64c1-14 11-21 22-21s21 7 22 21z" fill="currentColor" opacity=".55"/></symbol>
+</defs></svg>
 <main class="app" id="top">
-<header><div class="brand"><img src="./icon-192.png" alt="" class="brand-logo"><div><small data-t="appTag">PRIVATE • OFFLINE FIRST</small><h1>My Salary Tracker</h1></div></div><button id="menuBtn" class="iconbtn" aria-label="Menu" aria-haspopup="dialog">▦</button></header>
-<div id="clock" class="clock" role="timer"><span id="clockDate"></span><b id="clockTime"></b></div>
+<header><div class="brand"><img src="./icon-192.png" alt="" class="brand-logo"><div><h1>My Salary Tracker</h1></div></div><button id="menuBtn" class="iconbtn" aria-label="Menu" aria-haspopup="dialog"><svg class="ic" aria-hidden="true"><use href="#i-menu"/></svg></button></header>
+<div id="clock" class="clock" role="timer"><span id="clockTime"></span><b id="clockDate"></b></div>
 <div id="backupBanner" class="banner" role="status" hidden><p id="bannerText"></p><div class="actions"><button id="bannerExport" type="button" class="primary" data-t="b_banner_btn">Export backup now</button><button id="bannerLater" type="button" class="secondary" data-t="b_banner_later">Remind me tomorrow</button></div></div>
 <div id="dbBanner" class="banner" role="status" hidden><p id="dbBannerText"></p><button id="dbRetry" type="button" class="secondary">Retry database</button></div>
 <div class="month"><button id="prev" aria-label="Previous month">‹</button><strong id="month" aria-live="polite"></strong><button id="next" aria-label="Next month">›</button></div>
 
 <section class="card hero" aria-labelledby="earnedLbl"><div class="label" id="earnedLbl">This Month's Basic Income</div><h2 id="earned">€0.00</h2>
-<div class="stats"><div><small data-t="worked">Worked days</small><b id="days">0</b></div><div><small>Basic duty</small><b id="basicDays">0</b></div><div><small>Overtime</small><b id="ot">0 h</b></div></div><p class="note" id="formula"></p></section>
-<section class="card earnings-today"><div class="label">Today's Earnings</div><strong id="todayEarnings">€0.00</strong><div class="earning-lines" id="todayBreakdown"></div></section>
-<section class="card extra-income"><div class="label">This Month's Extra Income</div><div class="extra-grid"><div><small>Overtime</small><b id="monthOtIncome">€0.00</b></div><div class="tips-home"><small>Tips</small><b id="monthTipsIncome">€0.00</b><button id="addTipsHome" type="button" class="small" aria-label="Add Tips">＋</button></div></div></section>
+<div class="stats"><div><small data-t="worked">Worked days</small><b id="days">0</b></div><div><small>Basic duty</small><b id="basicDays">0</b></div><div><small>Overtime</small><b id="ot">0 h</b></div></div><div class="earnings-today"><div class="label">Today's Earnings</div><strong id="todayEarnings">€0.00</strong><div class="earning-lines" id="todayBreakdown"></div></div><p class="note" id="formula"></p></section>
+<section class="card home-totals-card" aria-label="Tips, expense and overtime"><div class="home-main-totals"><div class="home-tips"><span>Tips</span><b id="monthTipsIncome">€0.00</b><button id="addTipsHome" type="button" aria-label="Add Tips">＋</button></div><div><small id="expLbl">This month's expense</small><b id="expTotal">€0.00</b></div><div><small>OT income</small><b id="monthOtIncome">€0.00</b></div></div></section>
+
 <section class="card schedule-peek" id="schedulePeek" hidden><div class="label">Today's scheduled duty</div><div id="scheduleToday"></div></section>
 
-<div class="tiles">
-<div class="income-compact" aria-live="off"><small id="incomeLabel">This month's income</small><b id="received">€0</b></div>
-<button type="button" class="card expense-compact" data-jump="expenses"><small data-t="expenses">Expenses</small><b id="expTotal">€0</b></button>
-</div>
+
 
 <section data-screen="work" id="work" class="card work-page">
-<div class="row"><h3 data-t="workRecords">Work records</h3><button id="bulkWork" class="secondary small" type="button">＋ অনেক দিনের হিসাব</button><button id="addWork" class="small" aria-label="Add work">＋</button></div>
-<button id="quickDuty" class="primary full quick-duty">✅ <span data-t="quickDutyLabel">আজকের Basic Duty ১ ক্লিকে যোগ</span></button>
+<div class="row page-head"><h3 data-t="workRecords">Work records</h3></div>
+<button id="addWork" type="button" class="primary full add-work"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg> <span data-t="addWorkBtn">Add work</span></button>
+<div class="work-actions"><button id="quickDuty" type="button" class="secondary quick-duty"><svg class="ic" aria-hidden="true"><use href="#i-check"/></svg> <span data-t="quickDutyLabel">আজকের Basic Duty ১ ক্লিকে যোগ</span></button><button id="bulkWork" class="secondary" type="button"><svg class="ic" aria-hidden="true"><use href="#i-calendar"/></svg> <span data-t="bulkLabel">অনেক দিনের হিসাব</span></button></div>
 <div class="work-month"><button id="workPrev" class="small" aria-label="Previous month">‹</button><strong id="workMonth"></strong><button id="workNext" class="small" aria-label="Next month">›</button></div>
 <div class="work-stats"><div><small data-t="worked">Worked days</small><b id="workDaysCount">0</b></div><div><small data-t="r_earned">Earned</small><b id="workMonthEarned">€0.00</b></div></div>
 <button id="calendarToggle" class="calendar-toggle" type="button" aria-expanded="false" aria-controls="calendarPanel">＋ Show calendar</button><div id="calendarPanel" hidden><div id="workCalendar" class="work-calendar" aria-label="Monthly work calendar"></div>
 <div class="work-legend"><span><i class="worked"></i><span data-t="st_worked">Worked</span></span><span><i class="rest"></i><span data-t="st_rest">Rest</span></span><span><i class="paid"></i><span data-t="st_paid_leave">Paid leave</span></span><span><i class="unpaid"></i><span data-t="st_unpaid_leave">Unpaid leave</span></span><span><i class="sick"></i><span data-t="st_sick_leave">Sick leave</span></span><span><i class="holiday"></i><span data-t="st_holiday">Holiday</span></span></div></div>
 <p id="dupWarn" class="note warnline" role="status" hidden></p><div id="workList"></div></section>
-<section class="card duty-card"><div class="row"><h3 data-t="duty">Today's duty</h3><button id="record" class="secondary" data-t="record">＋ Record</button></div><p id="today"></p><button id="homeQuickDuty" class="duty-toggle full" type="button">আজকের ডিউটি করেছি</button><small id="dutyReason" class="duty-reason"></small></section>
+<section class="card duty-card"><div class="row"><h3 data-t="duty">Today's duty</h3></div><p id="today"></p><div class="today-duty-actions"><button id="homeQuickDuty" class="duty-toggle worked-toggle" type="button">আজকে ডিউটি করেছি</button><button id="homeQuickNoDuty" class="duty-toggle no-duty-toggle" type="button">আজকে কাজ করি নাই</button></div><small id="dutyReason" class="duty-reason"></small></section>
 <section id="quickActions" class="card quick-card"><h3 data-t="quickTitle">Quick Actions</h3><div class="quick-grid">
 <button type="button" class="quick" data-action="work"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6V4h6v2M4 8h16v12H4zM4 12h16M10 12v2h4v-2"/></svg></span><b data-t="qa_work">কাজ যোগ</b></button>
-<button type="button" class="quick" data-action="ot"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b data-t="qa_ot">OT যোগ</b></button>
+<button type="button" class="quick" data-action="ot"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b data-t="qa_ot">Overtime</b></button>
 <button type="button" class="quick" data-action="payments"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M7 14h3"/></svg></span><b data-t="qa_salary">বেতন</b></button>
 <button type="button" class="quick" data-action="expenses"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5zM16 3v4h3M8 11h8M8 15h5"/></svg></span><b data-t="qa_expense">খরচ</b></button>
 <button type="button" class="quick" data-action="remittances"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v10H4zM7 12h10M12 4v16"/><path d="m9 9 3-3 3 3M9 15l3 3 3-3"/></svg></span><b data-t="qa_remit">পরিবারে পাঠানো</b></button>
@@ -86,29 +114,28 @@
 <label class="check"><input id="paidHoliday" type="checkbox"><span data-t="s_paidHoliday"></span></label>
 <label class="check"><input id="sickPaid" type="checkbox"><span data-t="s_sickPaid"></span></label>
 
-</div><p id="settingsMsg" class="error" role="alert"></p>
+</div><div class="today-edit-settings"><h4>আজকের ডিউটি</h4><p class="note">একটি বাটন ব্যবহার করলে আজ দুটোই বন্ধ হবে। প্রয়োজন হলে এখানে আজকের রেকর্ড এডিট করতে পারবেন।</p><button id="editTodayStatus" type="button" class="secondary full">আজকের রেকর্ড এডিট</button></div><p id="settingsMsg" class="error" role="alert"></p>
 <div id="storageBox" class="storage"><h4 data-t="st_title">Storage &amp; backup</h4>
 <dl><div><dt data-t="st_persist">Protected storage</dt><dd id="stPersist"></dd></div><div><dt data-t="st_used">Space used</dt><dd id="stUsed"></dd></div><div><dt data-t="st_lastBackup">Last backup exported</dt><dd id="stLast"></dd></div></dl>
 <div class="actions"><button id="persistBtn" type="button" class="secondary" data-t="st_request">Request protection</button></div><p id="persistMsg" class="note" role="status"></p></div></section>
-<nav class="bottom-nav" aria-label="Main navigation"><button data-nav="top"><span>🏠</span><b data-t="home">Home</b></button><button data-nav="work"><span>🗓️</span><b data-t="workRecords">Work</b></button><button class="nav-add" data-nav="quickActions"><span>＋</span><b data-t="add">Add</b></button><button data-nav="payments"><span>💳</span><b data-t="payments">Money</b></button><button data-nav="reports"><span>📊</span><b data-t="reports">Reports</b></button></nav>
+<nav class="bottom-nav" aria-label="Main navigation"><button data-nav="top"><span><svg class="ic" aria-hidden="true"><use href="#i-home"/></svg></span><b data-t="home">Home</b></button><button data-nav="work"><span><svg class="ic" aria-hidden="true"><use href="#i-work"/></svg></span><b data-t="workRecords">Work</b></button><button class="nav-add" data-nav="quickActions"><span><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></span><b data-t="add">Add</b></button><button data-nav="payments"><span><svg class="ic" aria-hidden="true"><use href="#i-wallet"/></svg></span><b data-t="payments">Money</b></button><button data-nav="reports"><span><svg class="ic" aria-hidden="true"><use href="#i-chart"/></svg></span><b data-t="reports">Reports</b></button></nav>
 <footer><span id="verLine"></span></footer>
 </main>
 
 <div id="printArea" aria-hidden="true"></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
-<dialog id="menu"><div class="dlg menu-dlg"><button type="button" class="menu-close" aria-label="Close menu" id="menuClose">×</button><h3 data-t="menu">Menu</h3><div class="menu-items">
-<button type="button" data-target="top">⌂ <span data-t="home">Home</span></button>
-<button type="button" data-target="reports">▤ <span data-t="reports">Reports</span></button>
-<button type="button" data-target="people">👥 <span data-t="peopleTitle">People &amp; profiles</span></button>
-<button type="button" data-target="gifts">🎁 <span data-t="given">Money given</span></button>
-<button type="button" id="menuAccount">👤 <span>My Account</span></button>
-<button type="button" data-target="backupSec">⇅ <span data-t="backupSec">Backup &amp; restore</span></button>
-<button type="button" id="menuDutyProgram">📅 <span>Monday Duty Program</span></button><button type="button" id="menuUpdate">🔄 <span>App Update</span></button>
-<button type="button" id="privacyBtn">🔒 <span>Privacy &amp; Security</span></button>
-<button type="button" data-target="export">📤 <span>Export Data</span></button>
-<button type="button" data-target="settings">⚙ <span data-t="settings">Settings</span></button>
-<button type="button" id="aboutBtn">ⓘ <span data-t="m_about">About</span></button></div>
+<dialog id="menu"><div class="dlg menu-dlg"><button type="button" class="menu-close" aria-label="Close menu" id="menuClose"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button><h3 data-t="menu">Menu</h3><button type="button" id="menuAccount" class="menu-profile"><span class="pf-avatar" id="menuAvatar"></span><span class="menu-profile-text"><b id="menuName"></b><small data-t="pf_manage">Profile &amp; account</small></span><svg class="ic chev" aria-hidden="true"><use href="#i-chev"/></svg></button><div class="menu-items">
+<button type="button" data-target="top"><svg class="ic mi" aria-hidden="true"><use href="#i-home"/></svg> <span data-t="home">Home</span></button>
+<button type="button" data-target="reports"><svg class="ic mi" aria-hidden="true"><use href="#i-chart"/></svg> <span data-t="reports">Reports</span></button>
+<button type="button" data-target="remit"><svg class="ic mi" aria-hidden="true"><use href="#i-swap"/></svg> <span data-t="remit">Remittance</span></button><button type="button" data-target="people"><svg class="ic mi" aria-hidden="true"><use href="#i-users"/></svg> <span data-t="peopleTitle">People &amp; profiles</span></button>
+<button type="button" data-target="gifts"><svg class="ic mi" aria-hidden="true"><use href="#i-gift"/></svg> <span data-t="given">Money given</span></button><button type="button" data-target="profile"><svg class="ic mi" aria-hidden="true"><use href="#i-user"/></svg> <span data-t="pf_manage">Profile &amp; account</span></button>
+<button type="button" data-target="backupSec"><svg class="ic mi" aria-hidden="true"><use href="#i-swap"/></svg> <span data-t="backupSec">Backup &amp; restore</span></button>
+<button type="button" id="menuDutyProgram"><svg class="ic mi" aria-hidden="true"><use href="#i-calendar"/></svg> <span>Monday Duty Program</span></button><button type="button" id="menuUpdate"><svg class="ic mi" aria-hidden="true"><use href="#i-refresh"/></svg> <span>App Update</span></button>
+<button type="button" id="privacyBtn"><svg class="ic mi" aria-hidden="true"><use href="#i-lock"/></svg> <span>Privacy &amp; Security</span></button>
+<button type="button" data-target="export"><svg class="ic mi" aria-hidden="true"><use href="#i-upload"/></svg> <span>Export Data</span></button>
+<button type="button" data-target="settings"><svg class="ic mi" aria-hidden="true"><use href="#i-gear"/></svg> <span data-t="settings">Settings</span></button>
+<button type="button" id="aboutBtn"><svg class="ic mi" aria-hidden="true"><use href="#i-info"/></svg> <span data-t="m_about">About</span></button></div>
 <button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
 
 <dialog id="dutyProgramDialog"><div class="dlg"><h3>Monday Duty Program</h3><p class="muted">Upload a paper schedule photo. The photo and confirmed schedule are saved on this phone only. Review and enter the details manually; no cloud OCR is used.</p>
@@ -119,19 +146,32 @@
 <p id="programPreview" class="muted"></p><div class="dialog-actions"><button id="saveProgram" class="primary" type="button">Confirm &amp; Save</button><button class="secondary closeDlg" type="button">Close</button></div><h4>Schedule History</h4><div id="programHistory"></div></div></dialog>
 <dialog id="quickAddDialog"><div class="dlg"><h3 data-t="add">Add</h3><div class="quick-grid">
 <button type="button" class="quick" data-action="work"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6V4h6v2M4 8h16v12H4zM4 12h16M10 12v2h4v-2"/></svg></span><b data-t="qa_work">Add work</b></button>
-<button type="button" class="quick" data-action="ot"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b data-t="qa_ot">Add OT</b></button>
+<button type="button" class="quick" data-action="ot"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><b data-t="qa_ot">Overtime</b></button>
 <button type="button" class="quick" data-action="payments"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 9h18M7 14h3"/></svg></span><b data-t="qa_salary">Salary</b></button>
 <button type="button" class="quick" data-action="expenses"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5zM16 3v4h3M8 11h8M8 15h5"/></svg></span><b data-t="qa_expense">Expense</b></button>
 <button type="button" class="quick" data-action="remittances"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v10H4zM7 12h10M12 4v16"/><path d="m9 9 3-3 3 3M9 15l3 3 3-3"/></svg></span><b data-t="qa_remit">Remittance</b></button>
 <button type="button" class="quick" data-action="gifts"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="9" width="18" height="12" rx="1"/><path d="M2 7h20v4H2zM12 7v14M12 7c-5 0-6-5-3-5s3 5 3 5Zm0 0c5 0 6-5 3-5s-3 5-3 5Z"/></svg></span><b data-t="qa_gift">Money given</b></button><button type="button" class="quick" id="addTipQuick"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M8 15c-2-1.5-3-3.5-3-6a7 7 0 0 1 14 0c0 2.5-1 4.5-3 6l-1 2h-6z"/></svg></span><b>Add Tips</b></button></div><button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
-<dialog id="bulkWorkDlg"><div class="dlg"><h3>একসাথে অনেক দিনের কাজ যোগ করুন</h3><p class="note">শুরুর ও শেষের তারিখ দিন। নিচে প্রতিটি দিন দেখাবে—যে দিন যোগ করতে চান সেটি টিক দিন। আগে থেকে রেকর্ড থাকা দিন বাদ থাকবে।</p><div class="fields"><label><span>শুরুর তারিখ</span><input id="bulkStart" type="date"></label><label><span>শেষের তারিখ</span><input id="bulkEnd" type="date"></label></div><button id="bulkPreviewBtn" type="button" class="secondary full">তারিখগুলো দেখাও</button><label><span>দিনের অবস্থা</span><select id="bulkStatus"><option value="worked">Worked / Basic Duty</option><option value="rest">Rest Day</option><option value="holiday">Holiday</option><option value="unpaid_leave">Unpaid Leave</option></select></label><label id="bulkHoursWrap"><span>Basic Duty Hours (প্রতিটি Worked দিনের জন্য)</span><input id="bulkHours" type="number" step="0.25" min="0.25" max="24" value="8"></label><div id="bulkPreview" class="bulk-preview" aria-live="polite"></div><p id="bulkErr" class="error" role="alert"></p><div class="dialog-actions"><button id="bulkSave" type="button" class="primary">Selected dates Save</button><button type="button" class="secondary closeDlg">Cancel</button></div></div></dialog>
+<dialog id="bulkWorkDlg"><div class="dlg"><h3>একসাথে অনেক দিনের কাজ যোগ করুন</h3><p class="note">শুরুর ও শেষের তারিখ দিন। নিচে প্রতিটি দিন দেখাবে—যে দিন যোগ করতে চান সেটি টিক দিন। আগে থেকে রেকর্ড থাকা দিন বাদ থাকবে।</p><div class="fields"><label><span>শুরুর তারিখ</span><input id="bulkStart" type="date"></label><label><span>শেষের তারিখ</span><input id="bulkEnd" type="date"></label></div><button id="bulkPreviewBtn" type="button" class="secondary full">তারিখগুলো দেখাও</button><p class="note">প্রতিটি তারিখের জন্য আলাদা Status ও Worked hours নির্বাচন করুন।</p><div id="bulkPreview" class="bulk-preview" aria-live="polite"></div><p id="bulkErr" class="error" role="alert"></p><div class="dialog-actions"><button id="bulkSave" type="button" class="primary">Selected dates Save</button><button type="button" class="secondary closeDlg">Cancel</button></div></div></dialog>
+<dialog id="addWorkDlg"><div class="dlg awd">
+<div class="dlg-head"><h3 data-t="aw_title">Add work</h3><button type="button" class="iconbtn sm closeDlg" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+<p class="note" data-t="aw_hint">Tap the days you worked. Past days work too.</p>
+<div class="aw-month"><button id="awPrev" type="button" class="small" aria-label="Previous month">‹</button><strong id="awMonth" aria-live="polite"></strong><button id="awNext" type="button" class="small" aria-label="Next month">›</button></div>
+<div id="awCal" class="aw-cal" role="group" aria-label="Calendar"></div>
+<div class="aw-legend"><span><i class="worked"></i><span data-t="st_worked">Worked</span></span><span><i class="rest"></i><span data-t="st_rest">Rest</span></span><span><i class="paid"></i><span data-t="st_paid_leave">Paid leave</span></span><span><i class="unpaid"></i><span data-t="st_unpaid_leave">Unpaid leave</span></span><span><i class="sick"></i><span data-t="st_sick_leave">Sick leave</span></span><span><i class="holiday"></i><span data-t="st_holiday">Holiday</span></span></div>
+<div class="aw-quick"><button id="awToday" type="button" class="secondary" data-t="aw_today">Today</button><button id="awPast" type="button" class="secondary" data-t="aw_past">Empty days up to today</button><button id="awClear" type="button" class="secondary" data-t="aw_clear">Clear</button></div>
+<div class="fields aw-fields"><label><span data-t="aw_status">Status</span><select id="awStatus"></select></label><label id="awHoursWrap"><span data-t="aw_hours">Hours worked</span><input id="awHours" type="number" inputmode="decimal" min="0.25" max="24" step="0.25" value="8"></label></div>
+<div id="awSelected" class="aw-selected" aria-live="polite"></div>
+<p id="awErr" class="error" role="alert"></p>
+<div class="dialog-actions"><button id="awSave" type="button" class="primary">Save</button><button type="button" class="secondary closeDlg" data-t="cancel">Cancel</button></div>
+</div></dialog>
 <dialog id="editDialog"><form id="editForm" novalidate><h3 id="dlgTitle">Record</h3><div id="fields" class="fields"></div><p id="formErr" class="error" role="alert"></p>
 <div class="dialog-actions"><button class="primary" type="submit" data-t="save">Save</button><button type="button" id="deleteBtn" class="danger" hidden data-t="del">Delete</button><button type="button" class="secondary closeDlg" data-t="cancel">Cancel</button></div></form></dialog>
 
 <dialog id="confirmDlg"><div class="dlg"><h3 id="cfTitle">Confirm</h3><p id="cfMsg" class="muted"></p><div class="dialog-actions"><button type="button" id="cfOk" class="danger">OK</button><button type="button" id="cfCancel" class="secondary" data-t="cancel">Cancel</button></div></div></dialog>
 
 <dialog id="otDialog"><div class="dlg"><h3>Count Overtime</h3><label><span>Date</span><input id="otDate" type="date" required></label><label><span>Overtime hours to add</span><input id="otHoursAdd" type="number" inputmode="decimal" min="0.25" max="24" step="0.25" value="1" required></label><p id="otErr" class="error" role="alert"></p><div class="dialog-actions"><button type="button" id="saveOt" class="primary">Save OT</button><button type="button" class="secondary closeDlg">Close</button></div></div></dialog>
-<dialog id="tipsDialog"><div class="dlg"><h3>Add Tips</h3><label><span>Date</span><input id="tipDate" type="date" required tabindex="2"></label><label><span>Tips amount (€)</span><input id="tipAmount" type="number" inputmode="decimal" min="0.01" step="0.01" required tabindex="1"></label><label><span>Note (optional)</span><input id="tipNote" type="text"></label><div class="dialog-actions"><button type="button" id="saveTip" class="primary">Save Tips</button><button type="button" class="secondary closeDlg">Close</button></div></div></dialog>
+<dialog id="quickDutyHoursDlg"><div class="dlg"><h3>আজকে ডিউটি করেছি</h3><label><span>কত ঘণ্টা কাজ করেছি</span><input id="quickDutyHours" type="number" inputmode="decimal" min="0.25" max="24" step="0.25" value="8" required></label><p id="quickDutyHoursErr" class="error" role="alert"></p><div class="dialog-actions"><button type="button" id="saveQuickDutyHours" class="primary">Save</button><button type="button" class="secondary closeDlg">Cancel</button></div></div></dialog>
+<dialog id="tipsDialog"><div class="dlg"><h3>Add Tips</h3><div class="tips-month-income"><small>This month's income</small><b id="tipsMonthIncome">€0.00</b></div><label><span>Date</span><input id="tipDate" type="date" required tabindex="2"></label><label><span>Tips amount (€)</span><input id="tipAmount" type="number" inputmode="decimal" min="0.01" step="0.01" required tabindex="1"></label><label><span>Note (optional)</span><input id="tipNote" type="text"></label><div class="dialog-actions"><button type="button" id="saveTip" class="primary">Save Tips</button><button type="button" class="secondary closeDlg">Close</button></div></div></dialog>
 <dialog id="restoreDlg"><div class="dlg"><h3 data-t="b_restoreTitle">Restore backup</h3><div id="rsInfo" class="muted"></div>
 <button type="button" id="rsSafety" class="secondary" data-t="b_safety">Safety backup</button>
 <p class="muted" data-t="b_choose"></p>
@@ -142,7 +182,26 @@
 <dialog id="updateDlg"><div class="dlg"><h3 data-t="upd_title">New version installed</h3><p class="muted" data-t="upd_msg"></p><p class="note" id="updLastLine"></p>
 <button type="button" id="updBackup" class="primary" data-t="upd_backup">Export backup first</button><button type="button" id="updReload" class="secondary" data-t="upd_reload">Reload now</button><button type="button" id="updLater" class="secondary closeDlg" data-t="upd_later">Later</button></div></dialog>
 
-<dialog id="accountDlg"><div class="dlg"><h3>My Account</h3><div class="settings account-salary"><label><span>Monthly basic salary</span><input id="salaryMonthly" type="number" inputmode="decimal" step="0.01" min="0"></label><label><span>Work days per week</span><input id="weeklyDays" type="number" inputmode="numeric" step="1" min="1" max="7"></label><label><span>Calculated daily basic</span><input id="basic" type="number" step="0.01" min="0" readonly></label><button id="saveSettings" type="button" class="primary full">Save salary settings</button></div><p>Email account creation and Google Drive backup are not configured yet. Email sign-in requires an authentication provider; Drive backup requires a Google OAuth client setup.</p><p class="muted">This page does not upload or transmit financial data. Your current local backup and restore still work.</p><button type="button" class="secondary closeDlg">Close</button></div></dialog>
+<dialog id="accountDlg"><div class="dlg account">
+<div class="dlg-head"><h3 data-t="pf_title">My Account</h3><button type="button" class="iconbtn sm closeDlg" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+<section class="pf-card" id="pfCard"><div class="pf-avatar pf-avatar-lg" id="pfAvatar" role="img" aria-label="Profile photo"></div>
+<div class="pf-id"><b id="pfNameView"></b><small id="pfHint"></small></div>
+<button type="button" id="pfEdit" class="secondary pf-edit"><svg class="ic" aria-hidden="true"><use href="#i-edit"/></svg> <span data-t="pf_edit">Edit profile</span></button></section>
+<form id="pfForm" class="pf-form" hidden novalidate>
+<div class="pf-photo-row"><div class="pf-avatar pf-avatar-lg" id="pfPreview" role="img" aria-label="Photo preview"></div>
+<div class="pf-photo-btns"><button type="button" id="pfChange" class="secondary"><svg class="ic" aria-hidden="true"><use href="#i-camera"/></svg> <span id="pfChangeLbl" data-t="pf_add">Add photo</span></button>
+<button type="button" id="pfRemove" class="secondary danger-text"><svg class="ic" aria-hidden="true"><use href="#i-trash"/></svg> <span data-t="pf_remove">Remove photo</span></button></div></div>
+<input id="pfFile" type="file" accept="image/*" hidden>
+<small id="pfUnsaved" class="pf-unsaved" hidden data-t="pf_unsaved">Not saved yet</small>
+<label><span data-t="pf_name">Full name</span><input id="pfName" type="text" maxlength="60" autocomplete="name" enterkeyhint="done"></label>
+<p id="pfErr" class="error" role="alert"></p>
+<div class="dialog-actions pf-actions"><button id="pfSave" type="submit" class="primary" data-t="save">Save</button><button id="pfCancel" type="button" class="secondary" data-t="cancel">Cancel</button></div></form>
+<p class="pf-privacy"><svg class="ic" aria-hidden="true"><use href="#i-lock"/></svg> <span data-t="pf_privacy">Your name and photo stay on this phone. They are never uploaded.</span></p>
+<h4 class="sec-title" data-t="pf_salaryTitle">Salary settings</h4>
+<div class="settings account-salary"><label><span data-t="pf_salary">Monthly basic salary</span><input id="salaryMonthly" type="number" inputmode="decimal" step="0.01" min="0"></label><label><span data-t="pf_days">Work days per week</span><input id="weeklyDays" type="number" inputmode="numeric" step="1" min="1" max="7"></label><label><span data-t="pf_daily">Calculated daily basic</span><input id="basic" type="number" step="0.01" min="0" readonly></label><button id="saveSettings" type="button" class="primary full" data-t="pf_saveSalary">Save salary settings</button></div>
+<section class="pf-auth"><div class="pf-auth-head"><b data-t="pf_authTitle">Sign-in &amp; cloud accounts</b><span class="badge" data-t="pf_notConfigured">Not configured</span></div>
+<p class="muted" data-t="pf_authBody">Email sign-in, password reset and Google sign-in need an authentication service that has not been set up. Nothing here can sign you in yet, so no sign-in buttons are shown. Backup and restore keep working on this phone.</p></section>
+<button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
 <dialog id="privacyDlg"><div class="dlg"><h3>Privacy &amp; Security</h3><p>Your financial records are stored locally on this device in IndexedDB. The app does not send your financial data to a server. Export backups regularly. Browser storage may still be cleared by the device or browser; a backup is your safety copy.</p><button type="button" class="secondary closeDlg">Close</button></div></dialog>
 <dialog id="peopleDlg"><div class="dlg"><h3 id="personTitle">Profile</h3><div id="personProfile"></div><button type="button" id="renamePerson" class="secondary">Rename person</button><button type="button" class="secondary closeDlg">Close</button></div></dialog>
 <dialog id="aboutDlg"><div class="dlg"><h3 data-t="m_about">About</h3><p id="aboutText"></p><p class="muted" id="aboutVer"></p><a href="./recover.html" id="recoverLink" style="color:var(--accent);font-weight:700" data-t="m_recover">Recover data</a><button type="button" class="secondary closeDlg" data-t="close">Close</button></div></dialog>
@@ -150,5 +209,6 @@
 <script src="./i18n.js"></script>
 <script src="./calc.js"></script>
 <script src="./backup-rules.js"></script>
+<script src="./profile.js"></script>
 <script src="./app.js"></script>
 </body></html>

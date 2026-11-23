@@ -1,18 +1,16 @@
-# My Salary Tracker v9.5.9 — Test Report
+# Test report — My Salary Tracker 9.7.1
 
-## Changes
-- Home clock date/time spacing increased while compacting the overall clock box.
-- Month navigation arrows and month label reduced in size, padding, and given accent styling.
-- Dialogs now focus their heading instead of a first date input, reducing the chance native date pickers open automatically.
-- New remittance entries default to a country-aware editable exchange rate; Bangladesh defaults to 140 BDT per EUR (approximate, user-editable).
-- Version and service-worker cache updated to 9.5.9.
+## Independently run in this environment
+- JavaScript syntax checks: passed for app.js, service-worker.js, qa.test.js, and check.js.
+- Static checks: 57/57 passed (`node check.js`).
+- ZIP integrity: verified after packaging.
+- Flat ZIP structure: all app and test files at archive root; no nested folders.
 
-## Checks
-- JavaScript syntax checks passed (`app.js`, `calc.js`, `service-worker.js`).
-- Automated project checks: 42 baseline checks passed plus 6 added checks.
-- ZIP archive integrity checked after packaging.
+## Not independently run
+- `npm test` / functional test suites (db.test.js, profile.test.js, qa.test.js): not run. `npm install` timed out, and the dependencies jsdom and fake-indexeddb were not available.
+- Real-device browser testing on iPhone Safari or Android Chrome: not run.
 
-## Limitations
-- No real iPhone Safari UI test was performed.
-- Exchange-rate defaults are approximate and editable, not live FX rates. Existing remittance rates are preserved.
-- Remittance calculations/reporting remain BDT-based in the current app; other-country rates are defaults only and need country-specific remittance reporting support in a future update.
+## Targeted v9.7.1 change
+Home monthly totals now use the current calendar month (`homeMonth` / `hc`) rather than the month selected for Work/Reports. The Home regression test was updated to navigate to previous/next month and assert current-month income, Tips and expenses remain unchanged. This test was added but not executed here because test dependencies could not be installed.
+
+Claude's previous QA report included additional test-run claims; those are not independently verified in this report.

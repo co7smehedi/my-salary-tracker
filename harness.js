@@ -2,7 +2,7 @@
 // Loads the REAL index.html + app.js in jsdom with a real (fake-indexeddb) IndexedDB implementation.
 const {JSDOM}=require('jsdom');const fs=require('fs');const path=require('path');
 const FDB=require('fake-indexeddb');
-const ROOT=path.join(__dirname,'..');
+const ROOT=__dirname;
 const opens=[];
 async function load(opts={}){
   const html=fs.readFileSync(path.join(ROOT,'index.html'),'utf8').replace(/<script[^>]*src=[^>]*><\/script>/g,'');
@@ -13,10 +13,10 @@ async function load(opts={}){
   w.fetchCalls=0;w.fetch=()=>{w.fetchCalls++;return Promise.reject(new Error('offline'))};
   w.HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','')};
   w.HTMLDialogElement.prototype.close=function(){this.removeAttribute('open');this.dispatchEvent(new w.Event('close'))};
-  w.scrollTo=()=>{};w.matchMedia=w.matchMedia||(()=>({matches:false,addEventListener(){},addListener(){}}));
+  w.scrollTo=()=>{};w.Element.prototype.scrollIntoView=function(){};w.URL.createObjectURL=()=>'blob:test';w.URL.revokeObjectURL=()=>{};w.prompt=()=>null;w.alert=()=>{};w.matchMedia=w.matchMedia||(()=>({matches:false,addEventListener(){},addListener(){}}));
   w.confirm=()=>true;
   if(opts.beforeApp)opts.beforeApp(w);
-  for(const f of ['i18n.js','calc.js','backup-rules.js','app.js'])w.eval(fs.readFileSync(path.join(ROOT,f),'utf8'));
+  for(const f of ['i18n.js','calc.js','backup-rules.js','profile.js','app.js'])w.eval(fs.readFileSync(path.join(ROOT,f),'utf8'));
   let initError=null;try{await w.MSTReady}catch(e){initError=e}
   return {w,dom,idb:w.indexedDB,state:w.MSTDebug.state,D:w.MSTDebug,initError,$:id=>w.document.getElementById(id),close(){try{w.MSTDebug.state.db&&w.MSTDebug.state.db.close()}catch(e){};w.close()}};
 }

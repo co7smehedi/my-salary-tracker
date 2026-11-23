@@ -1,8 +1,8 @@
-/* My Salary Tracker v9.5.5 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
+/* My Salary Tracker v9.7.1 - all data stays on this device (IndexedDB + localStorage). No network requests are made by this file. */
 (function () {
   'use strict';
   var C = window.MSTCalc, I = window.MSTi18n, R = window.MSTRules, T = I.T;
-  var VERSION = '9.5.14';
+  var VERSION = '9.7.1';
   var DB_NAME = 'salary-tracker-db';
   var STORES = ['work', 'payments', 'expenses', 'remittances', 'gifts', 'dutyPrograms', 'tips'];
   var LEGACY = 'workEntries';
@@ -124,6 +124,58 @@
     if (m) m.setAttribute('content', state.settings.theme === 'light' ? '#f2f5f9' : '#101827');
   }
 
+  /* ---------- profile (name + photo): local only, never uploaded ---------- */
+  var PF = window.MSTProfile, pf = { saved: PF.empty ? PF.empty() : { name: '', photo: '', updatedAt: '' }, draft: null, editing: false, busy: false };
+  function lsSafe() { try { return window.localStorage; } catch (e) { return null; } }
+  function pfLoad() { pf.saved = PF.load(lsSafeOrDummy()); }
+  function lsSafeOrDummy() { return lsSafe() || { getItem: function () { throw new Error('no storage'); }, setItem: function () { throw new Error('no storage'); } }; }
+  function setAvatar(el, p) {
+    if (!el) return; el.textContent = '';
+    if (p && p.photo) { var im = document.createElement('img'); im.alt = ''; im.decoding = 'async'; im.src = p.photo; el.appendChild(im); el.classList.add('has-photo'); return; }
+    el.classList.remove('has-photo');
+    var ini = PF.initials(p && p.name);
+    if (ini) { var s = document.createElement('span'); s.className = 'av-init'; s.textContent = ini; el.appendChild(s); return; }
+    el.innerHTML = '<svg class="ic av" aria-hidden="true"><use href="#i-avatar"/></svg>';
+  }
+  function renderProfile() {
+    if (!$('pfCard')) return;
+    var s = pf.saved, d = pf.draft || s;
+    var nm = s.name || tr('pf_noName');
+    $('menuName').textContent = nm; setAvatar($('menuAvatar'), s);
+    $('pfNameView').textContent = nm; $('pfHint').textContent = s.name || s.photo ? tr('pf_savedHint') : tr('pf_noNameHint'); setAvatar($('pfAvatar'), s);
+    $('pfCard').hidden = pf.editing; $('pfForm').hidden = !pf.editing;
+    if (pf.editing) {
+      setAvatar($('pfPreview'), { name: $('pfName').value, photo: d.photo });
+      $('pfChangeLbl').textContent = tr(d.photo ? 'pf_change' : 'pf_add');
+      $('pfRemove').hidden = !d.photo;
+      $('pfUnsaved').hidden = !(d.photo !== s.photo);
+      $('pfChange').disabled = $('pfSave').disabled = pf.busy;
+    }
+  }
+  function pfStart() { pf.draft = { name: pf.saved.name, photo: pf.saved.photo }; pf.editing = true; $('pfName').value = pf.saved.name; setMsg('pfErr', null); renderProfile(); }
+  function pfReset() { pf.editing = false; pf.draft = null; pf.busy = false; setMsg('pfErr', null); renderProfile(); }
+  async function pfPick(file) {
+    if (!file) return; pf.busy = true; setMsg('pfErr', null); renderProfile();
+    try { pf.draft.photo = await PF.compress(file, PF.browserEnv(window)); }
+    catch (e) { setMsg('pfErr', function () { return tr('pf_errPhoto') + ' ' + (e && e.message || ''); }); }
+    pf.busy = false; renderProfile();
+  }
+  function pfSubmit() {
+    if (pf.busy) return;
+    var res = PF.save(lsSafeOrDummy(), { name: $('pfName').value, photo: pf.draft ? pf.draft.photo : '' });
+    if (!res.ok) { setMsg('pfErr', M(res.reason === 'quota' ? 'pf_errQuota' : res.reason === 'denied' ? 'pf_errDenied' : 'pf_errOther')); return; }
+    pf.saved = res.profile; pf.editing = false; pf.draft = null; renderProfile(); toast(tr('pf_saved'));
+  }
+  function bindProfile() {
+    $('pfEdit').onclick = pfStart; $('pfCancel').onclick = pfReset;
+    $('pfChange').onclick = function () { $('pfFile').click(); };
+    $('pfFile').onchange = function () { var f = this.files && this.files[0]; this.value = ''; pfPick(f); };
+    $('pfRemove').onclick = function () { if (pf.draft) pf.draft.photo = ''; renderProfile(); };
+    $('pfName').oninput = function () { setAvatar($('pfPreview'), { name: this.value, photo: pf.draft ? pf.draft.photo : '' }); };
+    $('pfForm').addEventListener('submit', function (e) { e.preventDefault(); pfSubmit(); });
+    $('accountDlg').addEventListener('close', function () { pfReset(); });
+  }
+
   /* ---------- IndexedDB ---------- */
   function idbOpen(name, version, upgrade) {
     return new Promise(function (res, rej) {
@@ -231,6 +283,75 @@
       };
     });
   }
+  function guard(key, fn) { return function () { if (state[key]) return; state[key] = true; var r; try { r = fn.apply(this, arguments); } catch (e) { state[key] = false; throw e; } return Promise.resolve(r).then(function (v) { state[key] = false; return v; }, function (e) { state[key] = false; throw e; }); }; }
+
+  /* ---------- Add work: calendar picker (past days included) ---------- */
+  var aw = { month: null, sel: {}, busy: false };
+  function awKey(y, mo, d) { return y + '-' + String(mo + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0'); }
+  function awStatus() { return $('awStatus').value || 'worked'; }
+  function awCommonHours() { var n = Number($('awHours').value); return Number.isFinite(n) ? n : state.settings.standard; }
+  function openAddWork(preDate) {
+    if (!state.dbReady) { toast('ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।'); return; }
+    closeWorkCalendar();
+    aw.month = new Date(state.month.getFullYear(), state.month.getMonth(), 1); aw.sel = {};
+    $('awStatus').innerHTML = C.STATUSES.map(function (k) { return '<option value="' + k + '">' + safe(tr('st_' + k)) + '</option>'; }).join('');
+    $('awStatus').value = 'worked'; $('awHours').value = state.settings.standard || 8; $('awErr').textContent = '';
+    if (preDate && C.isDate(preDate)) { aw.sel[preDate] = awCommonHours(); aw.month = new Date(+preDate.slice(0, 4), +preDate.slice(5, 7) - 1, 1); }
+    awRender(); openDlg('addWorkDlg');
+  }
+  function awRender() {
+    var y = aw.month.getFullYear(), mo = aw.month.getMonth(), days = new Date(y, mo + 1, 0).getDate(), start = new Date(y, mo, 1).getDay();   // Sunday first
+    var heads = { bn: ['র', 'সো', 'ম', 'বু', 'বৃ', 'শু', 'শ'], en: ['S', 'M', 'T', 'W', 'T', 'F', 'S'], tr: ['P', 'P', 'S', 'Ç', 'P', 'C', 'C'], bg: ['Н', 'П', 'В', 'С', 'Ч', 'П', 'С'], hi: ['र', 'सो', 'मं', 'बु', 'गु', 'शु', 'श'], el: ['Κ', 'Δ', 'Τ', 'Τ', 'Π', 'Π', 'Σ'] }[lang()] || ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    var out = heads.map(function (x) { return '<span class="aw-head">' + safe(x) + '</span>'; }).join(''), i;
+    for (i = 0; i < start; i++) out += '<span class="aw-empty"></span>';
+    var cls = { worked: 'worked', rest: 'rest', paid_leave: 'paid', unpaid_leave: 'unpaid', sick_leave: 'sick', holiday: 'holiday' };
+    for (var d = 1; d <= days; d++) {
+      var date = awKey(y, mo, d), rec = state.data.work.find(function (x) { return x.date === date; }), st = rec ? C.normStatus(rec.status) : null, on = aw.sel[date] !== undefined;
+      out += '<button type="button" class="aw-day' + (rec ? ' has-rec' : '') + (on ? ' sel' : '') + (date === today() ? ' today' : '') + '" data-aw-date="' + date + '" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + safe(date + (rec ? ' ' + statusLabel(rec.status) : '')) + '"><span>' + d + '</span>' + (st ? '<i class="' + (cls[st] || 'rest') + '"></i>' : '') + '</button>';
+    }
+    $('awCal').innerHTML = out; $('awMonth').textContent = fmtMonth(C.monthKeyOf(aw.month));
+    var worked = awStatus() === 'worked'; $('awHoursWrap').hidden = !worked;
+    var dates = Object.keys(aw.sel).sort();
+    $('awSelected').innerHTML = dates.map(function (dt) {
+      return '<div class="aw-row" data-date="' + dt + '"><span>' + safe(fmtDate(dt)) + '</span>' + (worked ? '<input class="aw-row-hours" type="number" inputmode="decimal" min="0.25" max="24" step="0.25" value="' + safe(aw.sel[dt]) + '" aria-label="' + safe(dt) + '">' : '') + '<button type="button" class="aw-x" data-aw-remove="' + dt + '" aria-label="Remove">' + '<svg class="ic" aria-hidden="true"><use href="#i-x"/></svg></button></div>';
+    }).join('');
+    $('awSave').textContent = tr('aw_save', { n: dates.length }); $('awSave').disabled = aw.busy || !dates.length;
+  }
+  function awToggle(date) { if (aw.sel[date] !== undefined) delete aw.sel[date]; else aw.sel[date] = awCommonHours(); $('awErr').textContent = ''; awRender(); }
+  async function awSave() {
+    if (aw.busy) return; var dates = Object.keys(aw.sel).sort(), err = $('awErr'), status = awStatus(), worked = status === 'worked';
+    if (!dates.length) { err.textContent = tr('aw_none'); return; }
+    var rows = {}; Array.from(document.querySelectorAll('#awSelected .aw-row')).forEach(function (r) { var inp = r.querySelector('.aw-row-hours'); rows[r.dataset.date] = inp ? Number(inp.value) : null; });
+    var records = [], i; for (i = 0; i < dates.length; i++) {
+      var dt = dates[i], hrs = worked ? (rows[dt] !== undefined ? rows[dt] : aw.sel[dt]) : 0;
+      if (worked && (!Number.isFinite(hrs) || hrs < 0.25 || hrs > 24)) { err.textContent = tr('err_hours'); return; }
+      if (state.data.work.some(function (x) { return x.date === dt; })) { err.textContent = tr('aw_exists'); return; }
+      records.push({ id: uid(), date: dt, status: status, hours: hrs, basicRate: state.settings.basic, standardHours: state.settings.standard, otRate: state.settings.otRate, busAllowanceRate: state.settings.bus, otExtraHours: worked ? Math.max(0, C.r2(hrs - state.settings.standard)) : 0, tips: 0, note: '' });
+    }
+    aw.busy = true; awRender();
+    try { await putWorkBatch(records); closeDlg('addWorkDlg'); aw.sel = {}; aw.busy = false; await refresh(); toast(tr('aw_saved', { n: records.length })); }
+    catch (e) { aw.busy = false; err.textContent = e && e.dup ? tr('aw_exists') : M('err_storage', null, ': ' + (e && e.message || e))(); awRender(); }
+  }
+  function bindAddWork() {
+    $('awPrev').onclick = function () { aw.month = new Date(aw.month.getFullYear(), aw.month.getMonth() - 1, 1); awRender(); };
+    $('awNext').onclick = function () { aw.month = new Date(aw.month.getFullYear(), aw.month.getMonth() + 1, 1); awRender(); };
+    $('awCal').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-aw-date]'); if (!b) return; var dt = b.getAttribute('data-aw-date'), rec = state.data.work.find(function (x) { return x.date === dt; });
+      if (rec) { closeDlg('addWorkDlg'); openForm('work', rec); return; }   // a day that already has a record is edited, never overwritten
+      awToggle(dt);
+    });
+    $('awSelected').addEventListener('click', function (e) { var b = e.target.closest('[data-aw-remove]'); if (b) { delete aw.sel[b.getAttribute('data-aw-remove')]; awRender(); } });
+    $('awSelected').addEventListener('input', function (e) { var r = e.target.closest('.aw-row'); if (r && e.target.classList.contains('aw-row-hours')) aw.sel[r.dataset.date] = Number(e.target.value); });
+    $('awStatus').onchange = awRender;
+    $('awHours').oninput = function () { var v = awCommonHours(); Object.keys(aw.sel).forEach(function (k) { aw.sel[k] = v; }); document.querySelectorAll('#awSelected .aw-row-hours').forEach(function (inp) { inp.value = v; }); };
+    $('awToday').onclick = function () { var t = today(); aw.month = new Date(+t.slice(0, 4), +t.slice(5, 7) - 1, 1); if (!state.data.work.some(function (x) { return x.date === t; })) aw.sel[t] = awCommonHours(); awRender(); };
+    $('awPast').onclick = function () { var t = today(), y = aw.month.getFullYear(), mo = aw.month.getMonth(), days = new Date(y, mo + 1, 0).getDate(); for (var d = 1; d <= days; d++) { var dt = awKey(y, mo, d); if (dt <= t && !state.data.work.some(function (x) { return x.date === dt; })) aw.sel[dt] = awCommonHours(); } awRender(); };
+    $('awClear').onclick = function () { aw.sel = {}; awRender(); };
+    $('awSave').onclick = awSave;
+  }
+  function putWorkBatch(records){return new Promise(function(resolve,reject){if(!records||!records.length)return resolve();var tx;try{if(!state.db)throw new Error('Local database is not ready.');tx=state.db.transaction('work','readwrite');}catch(e){reject(e);return;}var os=tx.objectStore('work'),rq=os.getAll(),dup=false;tx.oncomplete=function(){resolve();};tx.onabort=function(){var e=dup?new Error('duplicate date'):(tx.error||new Error('aborted'));e.dup=dup;reject(e);};tx.onerror=function(){};rq.onsuccess=function(){var existing=rq.result||[],seen={};for(var i=0;i<records.length;i++){var r=records[i];if(seen[r.date]||existing.some(function(x){return x.date===r.date&&x.id!==r.id;})){dup=true;try{tx.abort();}catch(e){}return;}seen[r.date]=true;}records.forEach(function(r){os.put(r);});};});}
+
+  function putTip(rec){return new Promise(function(resolve,reject){var tx;try{if(!state.db)throw new Error('Local database is not ready.');tx=state.db.transaction('tips','readwrite');tx.objectStore('tips').put(rec);}catch(e){reject(e);return;}tx.oncomplete=function(){resolve();};tx.onabort=function(){reject(tx.error||new Error('Save aborted'));};tx.onerror=function(){};});}
   function rawDel(s, id) { if (!state.db) return Promise.reject(new Error('Local database is not ready. Retry database connection.')); try { var tx = state.db.transaction(s, 'readwrite'); tx.objectStore(s).delete(id); return txDone(tx); } catch (e) { return Promise.reject(e); } }
   async function del(s, id) { try { await ensureConn(); return await rawDel(s, id); } catch (e) { if (e && e.name === 'InvalidStateError') { state.db = null; state.dbReady = false; await ensureConn(); return rawDel(s, id); } throw e; } }
   async function loadAll() { for (var i = 0; i < STORES.length; i++) state.data[STORES[i]] = await getAll(STORES[i]); }
@@ -266,12 +387,12 @@
   function fmtRecordDate(x){return x&&x.datePrecision==='month'?fmtMonth(String(x.date||'').slice(0,7)):fmtDate(x&&x.date);}
   function designWords() {
     var maps = {
-      en: {quick:'Quick Actions',work:'Add Work',ot:'Add OT',salary:'Salary',expense:'Expense',remit:'Send Home',gift:'Give Money',balance:'Balance',balanceSub:'Income, expenses and savings comparison',recent:'Recent Transactions',add:'Add',home:'Home',money:'Money',saved:'Estimated savings',received:'Received',outgoing:'Out'},
-      bn: {quick:'Quick Actions',work:'কাজ যোগ',ot:'OT যোগ',salary:'বেতন',expense:'খরচ',remit:'পরিবারে পাঠানো',gift:'অন্যদের দেওয়া',balance:'ব্যালেন্স',balanceSub:'আয়, খরচ ও সঞ্চয়ের তুলনা',recent:'সাম্প্রতিক লেনদেন',add:'যোগ',home:'হোম',money:'টাকা',saved:'আনুমানিক সঞ্চয়',received:'পেয়েছি',outgoing:'খরচ'},
-      tr: {quick:'Hızlı İşlemler',work:'İş Ekle',ot:'Mesai Ekle',salary:'Maaş',expense:'Gider',remit:'Aileye Gönder',gift:'Para Ver',balance:'Maaş ve Giderler',balanceSub:'Gelir, gider ve tasarruf karşılaştırması',recent:'Son İşlemler',add:'Ekle',home:'Ana Sayfa',money:'Para',saved:'Tahmini birikim',received:'Alınan',outgoing:'Çıkan'},
-      bg: {quick:'Бързи действия',work:'Добави работа',ot:'Добави извънредно',salary:'Заплата',expense:'Разход',remit:'Изпрати на семейството',gift:'Дари пари',balance:'Заплата и разходи',balanceSub:'Сравнение на доходи, разходи и спестявания',recent:'Последни транзакции',add:'Добави',home:'Начало',money:'Пари',saved:'Очаквани спестявания',received:'Получени',outgoing:'Изходящи'},
-      hi: {quick:'त्वरित कार्रवाइयाँ',work:'काम जोड़ें',ot:'ओटी जोड़ें',salary:'वेतन',expense:'खर्च',remit:'परिवार को भेजें',gift:'पैसे दें',balance:'वेतन और खर्च',balanceSub:'आय, खर्च और बचत की तुलना',recent:'हाल के लेनदेन',add:'जोड़ें',home:'होम',money:'पैसा',saved:'अनुमानित बचत',received:'प्राप्त',outgoing:'खर्च'},
-      el: {quick:'Γρήγορες ενέργειες',work:'Προσθήκη εργασίας',ot:'Προσθήκη υπερωρίας',salary:'Μισθός',expense:'Έξοδο',remit:'Αποστολή στην οικογένεια',gift:'Δωρεά',balance:'Μισθός και έξοδα',balanceSub:'Σύγκριση εσόδων, εξόδων και αποταμίευσης',recent:'Πρόσφατες συναλλαγές',add:'Προσθήκη',home:'Αρχική',money:'Χρήματα',saved:'Εκτιμώμενη αποταμίευση',received:'Ελήφθησαν',outgoing:'Έξοδα'}
+      en: {quick:'Quick Actions',work:'Add Work',ot:'Overtime',salary:'Salary',expense:'Expense',remit:'Send Home',gift:'Give Money',balance:'Balance',balanceSub:'Income, expenses and savings comparison',recent:'Recent Transactions',add:'Add',home:'Home',money:'Money',saved:'Estimated savings',received:'Received',outgoing:'Out'},
+      bn: {quick:'Quick Actions',work:'কাজ যোগ',ot:'Overtime',salary:'বেতন',expense:'খরচ',remit:'পরিবারে পাঠানো',gift:'অন্যদের দেওয়া',balance:'ব্যালেন্স',balanceSub:'আয়, খরচ ও সঞ্চয়ের তুলনা',recent:'সাম্প্রতিক লেনদেন',add:'যোগ',home:'হোম',money:'টাকা',saved:'আনুমানিক সঞ্চয়',received:'পেয়েছি',outgoing:'খরচ'},
+      tr: {quick:'Hızlı İşlemler',work:'İş Ekle',ot:'Overtime',salary:'Maaş',expense:'Gider',remit:'Aileye Gönder',gift:'Para Ver',balance:'Maaş ve Giderler',balanceSub:'Gelir, gider ve tasarruf karşılaştırması',recent:'Son İşlemler',add:'Ekle',home:'Ana Sayfa',money:'Para',saved:'Tahmini birikim',received:'Alınan',outgoing:'Çıkan'},
+      bg: {quick:'Бързи действия',work:'Добави работа',ot:'Overtime',salary:'Заплата',expense:'Разход',remit:'Изпрати на семейството',gift:'Дари пари',balance:'Заплата и разходи',balanceSub:'Сравнение на доходи, разходи и спестявания',recent:'Последни транзакции',add:'Добави',home:'Начало',money:'Пари',saved:'Очаквани спестявания',received:'Получени',outgoing:'Изходящи'},
+      hi: {quick:'त्वरित कार्रवाइयाँ',work:'काम जोड़ें',ot:'Overtime',salary:'वेतन',expense:'खर्च',remit:'परिवार को भेजें',gift:'पैसे दें',balance:'वेतन और खर्च',balanceSub:'आय, खर्च और बचत की तुलना',recent:'हाल के लेनदेन',add:'जोड़ें',home:'होम',money:'पैसा',saved:'अनुमानित बचत',received:'प्राप्त',outgoing:'खर्च'},
+      el: {quick:'Γρήγορες ενέργειες',work:'Προσθήκη εργασίας',ot:'Overtime',salary:'Μισθός',expense:'Έξοδο',remit:'Αποστολή στην οικογένεια',gift:'Δωρεά',balance:'Μισθός και έξοδα',balanceSub:'Σύγκριση εσόδων, εξόδων και αποταμίευσης',recent:'Πρόσφατες συναλλαγές',add:'Προσθήκη',home:'Αρχική',money:'Χρήματα',saved:'Εκτιμώμενη αποταμίευση',received:'Ελήφθησαν',outgoing:'Έξοδα'}
     };
     return maps[lang()] || maps.en;
   }
@@ -314,8 +435,15 @@
   function personGroups() {var map={};(state.settings.people||[]).forEach(function(name){var k=String(name).toLocaleLowerCase();if(name&&!map[k])map[k]={name:name,eur:0,bdt:0,other:0,count:0,items:[]};});state.data.gifts.forEach(function(g){var name=String(g.person||'').trim();if(!name)return;var k=name.toLocaleLowerCase();if(!map[k])map[k]={name:name,eur:0,bdt:0,other:0,count:0,items:[]};var c=String(g.currency||'EUR').toUpperCase();if(c==='EUR')map[k].eur+=C.num(g.amount);else if(c==='BDT')map[k].bdt+=C.num(g.amount);else {map[k].other+=C.num(g.amount);map[k].currencies=map[k].currencies||{};map[k].currencies[c]=(map[k].currencies[c]||0)+C.num(g.amount);}if(g.bdtActual)map[k].bdt+=C.num(g.bdtActual);map[k].count++;map[k].items.push(g);});return Object.keys(map).map(function(k){return map[k];}).sort(function(a,b){return a.name.localeCompare(b.name);});}
   function renderPeople() {var groups=personGroups(),words={bn:'লেনদেন',en:'transactions',tr:'işlem',bg:'транзакции',hi:'लेन-देन',el:'συναλλαγές'};var word=words[lang()]||words.en;$('peopleList').innerHTML=groups.map(function(g){return '<button type="button" class="person-row" data-person="'+safe(g.name)+'"><strong>'+safe(g.name)+'</strong><span>'+money(g.eur)+' · '+numFmt(g.bdt)+' BDT</span><small>'+g.count+' '+safe(word)+'</small></button>';}).join('')||'<p class="empty">'+safe(tr('r_none'))+'</p>'; $('personDirectory').innerHTML='<p class="note">Saved people (add once, select later)</p>'+groups.map(function(g){return '<div class="directory-row"><span>'+safe(g.name)+'</span><button type="button" data-person-rename="'+safe(g.name)+'">Rename</button></div>';}).join('');}
   function openPerson(name) {var group=personGroups().find(function(g){return g.name.toLocaleLowerCase()===String(name).toLocaleLowerCase();});if(!group)return;state.personSelected=group.name;var extra=group.currencies?Object.keys(group.currencies).map(function(c){return '<div><small>'+safe(c)+' total</small><b>'+safe(numFmt(group.currencies[c]))+'</b></div>';}).join(''):'';$('personTitle').textContent=group.name;$('personProfile').innerHTML='<div class="person-totals"><div><small>EUR total</small><b>'+safe(money(group.eur))+'</b></div><div><small>BDT total</small><b>'+safe(numFmt(group.bdt))+' ৳</b></div><div><small>Transactions</small><b>'+group.count+'</b></div>'+extra+'</div>'+group.items.sort(byDateDesc).map(function(x){return row(fmtDate(x.date),x.note||'',money(x.amount,String(x.currency||'EUR').toUpperCase()),'gifts',x.id);}).join('');openDlg('peopleDlg');}
-  function dutyButtonState(){var b=$('homeQuickDuty'),reason=$('dutyReason'),rec=state.data.work.find(function(x){return x.date===today();}),status=rec?C.normStatus(rec.status):null;if(!state.dbReady){b.disabled=true;b.classList.remove('done');b.classList.add('blocked');b.textContent='ডাটা লোড না হওয়া পর্যন্ত বন্ধ';reason.textContent='ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।';return;}b.disabled=!!rec;b.classList.toggle('done',status==='worked');b.classList.toggle('blocked',b.disabled);b.textContent=status==='worked'?'✓ আজকের ডিউটি সম্পন্ন':b.disabled?'আজ ডিউটি নেই / ছুটি':'আজকে ডিউটি করেছি';reason.textContent=b.disabled?('আজকের রেকর্ড আছে: '+statusLabel(rec.status)+' — পরিবর্তন করতে Work থেকে Edit করুন।'):'রেকর্ড না থাকলে আজকের ডিউটি একবার যোগ করতে পারবেন।';}
-  function quickBasicDuty() {if(!state.dbReady){toast('ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।');return;}var dt=today(),existing=state.data.work.find(function(x){return x.date===dt;});if(existing&&C.normStatus(existing.status)==='worked'){toast('আজকের Basic Duty ইতিমধ্যে যোগ করা আছে।');return;}if(existing){toast('আজকের রেকর্ডে '+statusLabel(existing.status)+' আছে। আগে Edit করে Worked করুন।');return;}var rec={id:uid(),date:dt,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,otExtraHours:0,tips:0,note:''};putWork(rec).then(refresh).then(function(){toast('আজকের Basic Duty ও Basic Salary যোগ হয়েছে।','Undo',function(){del('work',rec.id).then(refresh);});}).catch(function(e){toast(e&&e.dup?'আজকের কাজ আগেই রেকর্ড হয়েছে।':M('err_storage',null,': '+(e.message||e)));});}
+  var TODAY_QUICK_LOCK_KEY='mst-today-quick-lock';
+  function todayQuickLock(){try{return JSON.parse(localStorage.getItem(TODAY_QUICK_LOCK_KEY)||'null');}catch(e){return null;}}
+  function setTodayQuickLock(date,status){try{localStorage.setItem(TODAY_QUICK_LOCK_KEY,JSON.stringify({date:date,status:status}));return true;}catch(e){return false;}}
+  function dutyButtonState(){var yes=$('homeQuickDuty'),no=$('homeQuickNoDuty'),reason=$('dutyReason'),rec=state.data.work.find(function(x){return x.date===today();}),lock=todayQuickLock(),locked=!!rec||(!!lock&&lock.date===today()),status=rec?C.normStatus(rec.status):(lock&&lock.date===today()?lock.status:null);if(!state.dbReady){yes.disabled=true;no.disabled=true;yes.classList.add('blocked');no.classList.add('blocked');reason.textContent='ডাটা লোড না হওয়া পর্যন্ত বন্ধ';return;}yes.disabled=locked;no.disabled=locked;yes.classList.toggle('done',status==='worked');no.classList.toggle('done',status&&status!=='worked');yes.classList.toggle('blocked',locked&&status!=='worked');no.classList.toggle('blocked',locked&&status==='worked');var bn=lang()==='bn';yes.textContent=status==='worked'?(bn?'✓ আজকের ডিউটি সম্পন্ন':'✓ Worked today'):(bn?'আজকে ডিউটি করেছি':'Worked today');no.textContent=status&&status!=='worked'?(bn?'✓ আজ কাজ করিনি':'✓ Did not work today'):(bn?'আজকে কাজ করি নাই':'Did not work today');reason.textContent=locked?(bn?'আজকের জন্য একটি অপশন ব্যবহার হয়েছে। সেটিংস থেকে রেকর্ড এডিট করুন।':'One option has been used today. Edit today’s record in Settings.'):(bn?'আজ এই দুইটি বাটনের মধ্যে একটি মাত্র ব্যবহার করতে পারবেন।':'You can use only one of these buttons today.');}
+  function quickToday(status,hours){if(!state.dbReady){toast('ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।');return;}var dt=today(),existing=state.data.work.find(function(x){return x.date===dt;}),lock=todayQuickLock();if(existing||(lock&&lock.date===dt)){toast('আজকের বাটন ইতিমধ্যে ব্যবহার করা হয়েছে।');dutyButtonState();return;}$('homeQuickDuty').disabled=true;$('homeQuickNoDuty').disabled=true;var rec={id:uid(),date:dt,status:status,hours:status==='worked'?hours:0,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,otExtraHours:status==='worked'?Math.max(0,hours-state.settings.standard):0,tips:0,note:''};putWork(rec).then(function(){setTodayQuickLock(dt,status);return refresh();}).then(function(){toast(status==='worked'?'আজকের Basic Duty ও Basic Salary যোগ হয়েছে।':'আজকের Rest Day রেকর্ড যোগ হয়েছে।');}).catch(function(e){dutyButtonState();toast(e&&e.dup?'আজকের কাজ আগেই রেকর্ড হয়েছে।':M('err_storage',null,': '+(e.message||e)));});}
+  function quickBasicDuty(){if(!state.dbReady){toast('ডাটাবেস প্রস্তুত নয়। উপরের Retry চাপুন।');return;}var dt=today(),existing=state.data.work.find(function(x){return x.date===dt;}),lock=todayQuickLock();if(existing||(lock&&lock.date===dt)){toast('আজকের বাটন ইতিমধ্যে ব্যবহার করা হয়েছে।');dutyButtonState();return;} $('quickDutyHours').value='8';$('quickDutyHoursErr').textContent='';openDlg('quickDutyHoursDlg');}
+  function quickNoDuty(){quickToday('rest',0);}
+  function saveQuickDutyHours(){var hours=Number($('quickDutyHours').value);if(!Number.isFinite(hours)||hours<0.25||hours>24){$('quickDutyHoursErr').textContent='ঘণ্টা ০.২৫ থেকে ২৪ এর মধ্যে দিন।';return;}closeDlg('quickDutyHoursDlg');quickToday('worked',hours);}
+  function editTodayStatus(){var rec=state.data.work.find(function(x){return x.date===today();});if(!rec){toast('আজকের কোনো রেকর্ড নেই।');return;}switchView('work');openForm('work',rec);}
 
   function renderTodayProgram(){
     var p=(state.data.dutyPrograms||[]).find(function(x){return x.date===today();}),box=$('schedulePeek'),out=$('scheduleToday');
@@ -334,17 +462,18 @@
   function render() {
     var s = state.settings, m = viewMonth(), c = C.calcMonth(state.data, s, m), homeMonth = today().slice(0,7), hc = C.calcMonth(state.data, s, homeMonth), d = state.data;
     document.documentElement.lang = lang(); applyTheme();
-    document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = tr(el.getAttribute('data-t')); });
-    var extras={bn:{quickDutyLabel:'আজকের Basic Duty ১ ক্লিকে যোগ',peopleTitle:'ব্যক্তিভিত্তিক হিসাব',peopleNote:'প্রত্যেকের মোট টাকা ও লেনদেন আলাদা',transactions:'লেনদেন'},en:{quickDutyLabel:'One-tap: record today’s basic duty',peopleTitle:'People & profiles',peopleNote:'Individual totals and transaction history',transactions:'transactions'},tr:{quickDutyLabel:'Bugünün normal mesaisini tek dokunuşla kaydet',peopleTitle:'Kişiler ve profiller',peopleNote:'Kişiye göre toplamlar ve geçmiş',transactions:'işlem'},bg:{quickDutyLabel:'Запиши днешния работен ден с едно докосване',peopleTitle:'Хора и профили',peopleNote:'Суми и история по човек',transactions:'транзакции'},hi:{quickDutyLabel:'आज की सामान्य ड्यूटी एक टैप में दर्ज करें',peopleTitle:'लोग और प्रोफ़ाइल',peopleNote:'व्यक्ति के अनुसार कुल और इतिहास',transactions:'लेन-देन'},el:{quickDutyLabel:'Καταγραφή σημερινής βάρδιας με ένα πάτημα',peopleTitle:'Άτομα και προφίλ',peopleNote:'Σύνολα και ιστορικό ανά άτομο',transactions:'συναλλαγές'}};var ex=extras[lang()]||extras.en;var qa={en:['Add Work','Add OT','Salary','Expense','Send Home','Money Given'],bn:['কাজ যোগ','OT যোগ','বেতন','খরচ','পরিবারে পাঠানো','অন্যদের দেওয়া'],tr:['İş ekle','Mesai ekle','Maaş','Gider','Eve para gönder','Para verildi'],bg:['Добави работа','Добави извънреден труд','Заплата','Разход','Изпрати у дома','Дадени пари'],hi:['काम जोड़ें','ओटी जोड़ें','वेतन','खर्च','घर पैसे भेजें','दिए गए पैसे'],el:['Προσθήκη εργασίας','Προσθήκη υπερωρίας','Μισθός','Έξοδο','Αποστολή χρημάτων','Χρήματα που δόθηκαν']}[lang()]||['Add Work','Add OT','Salary','Expense','Send Home','Money Given'];['qa_work','qa_ot','qa_salary','qa_expense','qa_remit','qa_gift'].forEach(function(k,i){document.querySelectorAll('[data-t='+k+']').forEach(function(el){el.textContent=qa[i];});});document.querySelector('[data-t=quickDutyLabel]').textContent=ex.quickDutyLabel;document.getElementById('homeQuickDuty').textContent='✅ '+ex.quickDutyLabel;document.querySelectorAll('[data-t=peopleTitle]').forEach(function(el){el.textContent=ex.peopleTitle;});document.querySelector('[data-t=peopleNote]').textContent=ex.peopleNote;
+    document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = tr(el.getAttribute('data-t')); }); renderProfile();
+    var extras={bn:{quickDutyLabel:'আজকের Basic Duty ১ ক্লিকে যোগ',peopleTitle:'ব্যক্তিভিত্তিক হিসাব',peopleNote:'প্রত্যেকের মোট টাকা ও লেনদেন আলাদা',transactions:'লেনদেন'},en:{quickDutyLabel:'One-tap: record today’s basic duty',peopleTitle:'People & profiles',peopleNote:'Individual totals and transaction history',transactions:'transactions'},tr:{quickDutyLabel:'Bugünün normal mesaisini tek dokunuşla kaydet',peopleTitle:'Kişiler ve profiller',peopleNote:'Kişiye göre toplamlar ve geçmiş',transactions:'işlem'},bg:{quickDutyLabel:'Запиши днешния работен ден с едно докосване',peopleTitle:'Хора и профили',peopleNote:'Суми и история по човек',transactions:'транзакции'},hi:{quickDutyLabel:'आज की सामान्य ड्यूटी एक टैप में दर्ज करें',peopleTitle:'लोग और प्रोफ़ाइल',peopleNote:'व्यक्ति के अनुसार कुल और इतिहास',transactions:'लेन-देन'},el:{quickDutyLabel:'Καταγραφή σημερινής βάρδιας με ένα πάτημα',peopleTitle:'Άτομα και προφίλ',peopleNote:'Σύνολα και ιστορικό ανά άτομο',transactions:'συναλλαγές'}};var ex=extras[lang()]||extras.en;var qa={en:['Add Work','Overtime','Salary','Expense','Send Home','Money Given'],bn:['কাজ যোগ','Overtime','বেতন','খরচ','পরিবারে পাঠানো','অন্যদের দেওয়া'],tr:['İş ekle','Overtime','Maaş','Gider','Eve para gönder','Para verildi'],bg:['Добави работа','Overtime','Заплата','Разход','Изпрати у дома','Дадени пари'],hi:['काम जोड़ें','Overtime','वेतन','खर्च','घर पैसे भेजें','दिए गए पैसे'],el:['Προσθήκη εργασίας','Overtime','Μισθός','Έξοδο','Αποστολή χρημάτων','Χρήματα που δόθηκαν']}[lang()]||['Add Work','Overtime','Salary','Expense','Send Home','Money Given'];['qa_work','qa_ot','qa_salary','qa_expense','qa_remit','qa_gift'].forEach(function(k,i){document.querySelectorAll('[data-t='+k+']').forEach(function(el){el.textContent=qa[i];});});document.querySelector('[data-t=quickDutyLabel]').textContent=ex.quickDutyLabel;document.querySelectorAll('[data-t=peopleTitle]').forEach(function(el){el.textContent=ex.peopleTitle;});document.querySelector('[data-t=peopleNote]').textContent=ex.peopleNote;
     $('month').textContent = fmtMonth(m);
     $('clock').setAttribute('aria-label', tr('clock_label')); clockShown = { d: '', t: '' }; tickClock();
     $('earned').textContent = money(hc.wages); $('days').textContent = hc.workedDays; $('basicDays').textContent = hc.workedDays; $('ot').textContent = numFmt(hc.otHours) + ' h';
     var monthTips = hc.tips; $('monthOtIncome').textContent=money(hc.otPay); $('monthTipsIncome').textContent=money(monthTips);
     var todayRec=d.work.find(function(x){return x.date===today();}), todayParts=todayRec?C.dayParts(todayRec,s):{base:0,otHours:0,otPay:0}; var todayTips=(todayRec?C.num(todayRec.tips):0)+(d.tips||[]).filter(function(x){return x.date===today();}).reduce(function(n,x){return n+C.num(x.amount);},0), todayTotal=C.r2(todayParts.base+todayParts.otPay+todayTips); $('todayEarnings').textContent=money(todayTotal); $('todayBreakdown').innerHTML='<span>Basic Duty · '+money(todayParts.base)+'</span><span>Overtime · '+numFmt(todayParts.otHours)+' h · '+money(todayParts.otPay)+'</span><span>Tips · '+money(todayTips)+'</span><b>Total · '+money(todayTotal)+'</b>'; renderTodayProgram();
+    $('earnedLbl').textContent = "This Month's Basic Income"; $('expLbl').textContent = "This month's expense";
     $('formula').textContent = tr('fml', { basic: numFmt(s.basic), ot: numFmt(s.otRate) });
-    $('received').textContent = money(C.r2(hc.earned + hc.tips)); $('incomeLabel').textContent = tr('incomeThisMonth'); $('expTotal').textContent = money(hc.expenses);
-    $('busLine').textContent = c.busDue > 0
-      ? tr('bus_line', { due: money(c.busDue), status: tr('bus_' + c.busStatus) }) + (c.busStatus === 'partial' ? ' · ' + tr('bus_left', { amount: money(c.busOutstanding) }) : '')
+    $('tipsMonthIncome').textContent = money(C.r2(hc.earned + hc.tips)); $('expTotal').textContent = money(hc.expenses); $('monthOtIncome').textContent=money(hc.otPay); $('monthTipsIncome').textContent=money(hc.tips);
+    $('busLine').textContent = hc.busDue > 0
+      ? tr('bus_line', { due: money(hc.busDue), status: tr('bus_' + hc.busStatus) }) + (hc.busStatus === 'partial' ? ' · ' + tr('bus_left', { amount: money(hc.busOutstanding) }) : '')
       : tr('bus_notdue');
     var tw = d.work.find(function (x) { return x.date === today(); });
     $('today').textContent = tw ? statusLabel(tw.status) + (C.normStatus(tw.status) === 'worked' ? ' · ' + numFmt(tw.hours) + ' h' : '') : tr('notRecorded'); dutyButtonState();
@@ -378,8 +507,8 @@
     $('language').value = lang(); $('theme').value = s.theme; $('country').value=s.country||'CY'; $('currencyDisplay').value=(s.currency||'EUR');
     $('verLine').textContent = 'My Salary Tracker • ' + tr('ver') + ' ' + VERSION;
     $('aboutText').textContent = aboutProfile(); $('aboutVer').textContent = tr('ver') + ' ' + VERSION;
-    renderBackupUi(); renderReport(); renderDesignSummary(c); renderDBBanner();
-    ['record','quickDuty','addWork','addPayment','addExpense','addRemit','addGift','addPerson'].forEach(function(id){var el=$(id);if(el)el.disabled=!state.dbReady;});
+    renderBackupUi(); renderReport(); renderDesignSummary(c); renderDBBanner(); dutyButtonState();
+    ['quickDuty','homeQuickDuty','homeQuickNoDuty','addWork','addPayment','addExpense','addRemit','addGift','addPerson'].forEach(function(id){var el=$(id);if(el)el.disabled=!state.dbReady;});
     document.querySelectorAll('[data-action]').forEach(function(el){el.disabled=!state.dbReady;});
     $('menuDutyProgram').disabled=!state.dbReady;
     refreshMsgs();
@@ -488,7 +617,7 @@
   /* ---------- forms ---------- */
   var NUM = { step: '0.01', min: '0' };
   var FIELDS = {
-    work: [['date', 'f_date', 'date', 1], ['status', 'f_status', 'status', 1], ['hours', 'f_hours', 'number', 0, { step: '0.25', min: '0', max: '24' }], ['otExtraHours', 'Overtime hours', 'number', 0, { step: '0.25', min: '0', max: '24' }]],
+    work: [['date', 'f_date', 'date', 1], ['status', 'f_status', 'status', 1], ['hours', 'f_hours', 'number', 0, { step: '0.25', min: '0', max: '24' }]],
     payments: [['date', 'f_payDate', 'date', 1], ['month', 'f_salaryMonth', 'month', 1], ['amount', 'f_amountRecv', 'number', 1, NUM], ['bus', 'f_bus', 'number', 0, NUM], ['note', 'f_note', 'text', 0]],
     expenses: [['date', 'f_date', 'date', 1], ['category', 'f_category', 'category', 1], ['amount', 'f_amount', 'number', 1, NUM], ['note', 'f_note', 'text', 0]],
     remittances: [['date', 'f_date', 'date', 1], ['recipient', 'f_recipient', 'text', 1], ['amount', 'f_sent', 'number', 1, NUM], ['rate', 'f_rate', 'number', 1, { step: '0.0001', min: '0' }], ['fee', 'f_fee', 'number', 0, NUM], ['bonus', 'f_bonus', 'number', 0, { step: '0.1', min: '0' }], ['actualBdt', 'f_actualBdt', 'number', 0, NUM], ['note', 'f_note', 'text', 0]],
@@ -507,7 +636,7 @@
       var val = old[key];
       if (type === 'status' || type === 'category' || type === 'currency' || (kind==='gifts'&&key==='person')) {
         input = document.createElement('select');
-        var opts = (kind==='gifts'&&key==='person') ? (state.settings.people||[]).map(function(n){return [n,n];}).concat([['__add_person__','＋ Add new person']]) : type === 'status' ? C.STATUSES.map(function (k) { return [k, tr('st_' + k)]; }) : type === 'category' ? catKeys().map(function (k) { return [k, tr('cat_' + k)]; }) : [['EUR','EUR (€)'],['BDT','BDT (৳)'],['TRY','TRY (₺)'],['BGN','BGN (лв)'],['INR','INR (₹)'],['USD','USD ($)'],['GBP','GBP (£)'],['AED','AED (د.إ)'],['SAR','SAR (﷼)'],['QAR','QAR (﷼)'],['KWD','KWD (د.ك)'],['BHD','BHD (د.ب)'],['OMR','OMR (﷼)'],['JOD','JOD (د.ا)'],['CHF','CHF'],['CAD','CAD ($)'],['AUD','AUD ($)'],['NZD','NZD ($)'],['JPY','JPY (¥)'],['CNY','CNY (¥)'],['HKD','HKD ($)'],['SGD','SGD ($)'],['MYR','MYR (RM)'],['IDR','IDR (Rp)'],['PHP','PHP (₱)'],['THB','THB (฿)'],['VND','VND (₫)'],['PKR','PKR (₨)'],['NPR','NPR (रु)'],['LKR','LKR (Rs)'],['AFN','AFN (؋)'],['IRR','IRR (﷼)'],['ILS','ILS (₪)'],['RUB','RUB (₽)'],['UAH','UAH (₴)'],['PLN','PLN (zł)'],['CZK','CZK (Kč)'],['HUF','HUF (Ft)'],['RON','RON (lei)'],['SEK','SEK (kr)'],['NOK','NOK (kr)'],['DKK','DKK (kr)'],['ISK','ISK (kr)'],['MXN','MXN ($)'],['BRL','BRL (R$)'],['ARS','ARS ($)'],['CLP','CLP ($)'],['COP','COP ($)'],['PEN','PEN (S/)'],['ZAR','ZAR (R)'],['EGP','EGP (£)'],['NGN','NGN (₦)'],['KES','KES (KSh)'],['GHS','GHS (₵)'],['MAD','MAD (د.م.)'],['TND','TND (د.ت)']];
+        var opts = (kind==='gifts'&&key==='person') ? (state.settings.people||[]).map(function(n){return [n,n];}).concat([['__add_person__','＋ Add new person']]) : type === 'status' ? C.STATUSES.map(function (k) { return [k, tr('st_' + k)]; }) : type === 'category' ? catKeys().map(function (k) { return [k, tr('cat_' + k)]; }) : [['EUR','EUR (€)'],['BDT','BDT (৳)'],['TRY','TRY (₺)'],['BGN','BGN (лв)'],['INR','INR (₹)'],['USD','USD ($)'],['GBP','GBP (£)'],['AED','AED (د.إ)'],['SAR','SAR (﷼)'],['QAR','QAR (﷼)'],['KWD','KWD (د.ك)'],['BHD','BHD (د.ب)'],['OMR','OMR (﷼)'],['JOD','JOD (د.ا)'],['CHF','CHF'],['CAD','CAD ($)'],['AUD','AUD ($)'],['NZD','NZD ($)'],['JPY','JPY (¥)'],['CNY','CNY (¥)'],['HKD','HKD ($)'],['SGD','SGD ($)'],['MYR','MYR (RM)'],['IDR','IDR (Rp)'],['PHP','PHP (₱)'],['THB','THB (฿)'],['VND','VND (₫)'],['PKR','PKR (₨)'],['NPR','NPR (रु)'],['LKR','LKR (Rs)'],['AFN','AFN (؋)'],['IRR','IRR (﷼)'],['ILS','ILS (₪)'],['RUB','RUB (₽)'],['UAH','UAH (₴)'],['PLN','PLN (zł)'],['CZK','CZK (Kč)'],['HUF','HUF (Ft)'],['RON','RON (lei)'],['SEK','SEK (kr)'],['NOK','NOK (kr)'],['DKK','DKK (kr)'],['ISK','ISK (kr)'],['MXN','MXN ($)'],['BRL','BRL (R$)'],['ARS','ARS ($)'],['CLP','CLP ($)'],['COP','COP ($)'],['PEN','PEN (S/)'],['ZAR','ZAR (R)'],['EGP','EGP (£)'],['NGN','NGN (₦)'],['KES','KES (KSh)'],['GHS','GHS (₵)'],['MAD','MAD (د.م.)'],['TND','TND (د.ت)'],['XOF','XOF'],['XAF','XAF'],['DZD','DZD'],['RSD','RSD'],['ETB','ETB'],['TZS','TZS'],['UGX','UGX'],['MWK','MWK'],['ZMW','ZMW'],['BWP','BWP'],['MUR','MUR'],['SCR','SCR'],['SDG','SDG'],['SSP','SSP'],['SYP','SYP'],['YER','YER'],['AZN','AZN'],['GEL','GEL'],['KZT','KZT'],['UZS','UZS'],['MNT','MNT'],['KPW','KPW'],['KRW','KRW'],['LAK','LAK'],['KHR','KHR'],['MMK','MMK'],['BND','BND'],['FJD','FJD'],['PGK','PGK'],['WST','WST'],['TOP','TOP'],['VUV','VUV'],['XPF','XPF'],['CRC','CRC'],['GTQ','GTQ'],['HNL','HNL'],['NIO','NIO'],['PAB','PAB'],['UYU','UYU'],['PYG','PYG'],['BOB','BOB'],['GYD','GYD'],['TTD','TTD'],['JMD','JMD'],['BBD','BBD'],['BSD','BSD'],['XCD','XCD'],['AWG','AWG'],['ANG','ANG'],['CUP','CUP'],['HTG','HTG'],['CVE','CVE'],['KMF','KMF'],['DJF','DJF'],['ERN','ERN'],['LRD','LRD'],['SLL','SLL'],['GMD','GMD'],['GNF','GNF'],['MRU','MRU'],['MZN','MZN'],['AOA','AOA'],['CDF','CDF'],['BIF','BIF'],['RWF','RWF'],['SHP','SHP'],['LSL','LSL'],['SZL','SZL'],['NAD','NAD'],['KGS','KGS'],['TJS','TJS'],['AMD','AMD'],['BYN','BYN'],['MDL','MDL'],['ALL','ALL'],['MKD','MKD'],['BAM','BAM'],['HRK','HRK'],['GIP','GIP'],['FKP','FKP'],['IMP','IMP'],['JEP','JEP'],['TWD','TWD'],['LBP','LBP'],['MOP','MOP'],['SBD','SBD'],['DOP','DOP'],['BZD','BZD'],['GGP','GGP']];
         if (type === 'status' && val != null && C.normStatus(val)) val = C.normStatus(val);
         if (type === 'category' && val != null) { var lk = String(val).trim().toLowerCase(); if (T.en['cat_' + lk]) val = lk; if (val === 'rent' && opts.every(function (o) { return o[0] !== 'rent'; })) opts.push(['rent', tr('cat_rent')]); }
         if (type === 'currency' && val != null) val = String(val).toUpperCase();
@@ -540,7 +669,8 @@
     if (!C.isDate(v.date)) return fail('err_date');
     if (kind === 'work') {
       var worked = v.status === 'worked';
-      if (worked) { if (v.hours === null || Number.isNaN(v.hours) || v.hours < 0 || v.hours > 24) return fail('err_hours'); } else { v.hours = 0; v.otExtraHours = 0; } if (v.otExtraHours === null) v.otExtraHours = 0; if (!Number.isFinite(v.otExtraHours) || v.otExtraHours < 0 || v.otExtraHours > 24) return fail('err_hours'); if (v.tips == null) v.tips = 0; if (!Number.isFinite(v.tips) || v.tips < 0 || v.tips > 100000) return fail('err_amount');
+      if (worked) { if (v.hours === null || Number.isNaN(v.hours) || v.hours < 0 || v.hours > 24) return fail('err_hours'); } else { v.hours = 0; v.otExtraHours = 0; } if (v.tips == null) v.tips = Number(old.tips) || 0; if (!Number.isFinite(v.tips) || v.tips < 0 || v.tips > 100000) return fail('err_amount');
+      if (worked && old.otExtraHours !== undefined && old.otExtraHours !== null && old.otExtraHours !== '' && v.otExtraHours === undefined) { var stdH = Number(old.standardHours !== undefined ? old.standardHours : state.settings.standard) || 0, oldAuto = Math.max(0, (Number(old.hours) || 0) - stdH), manualOt = Math.max(0, C.r2(Number(old.otExtraHours) - oldAuto)); v.otExtraHours = C.r2(Math.max(0, v.hours - stdH) + manualOt); }   // overtime follows the hours; extra OT added from the OT screen is kept
       if (state.data.work.some(function (x) { return x.date === v.date && x.id !== old.id; })) return fail('err_dup');
     } else {
       if (!(v.amount > 0)) return fail('err_amount');
@@ -597,7 +727,7 @@
   }
   function buildBackup() {
     var st = {}; STORES.forEach(function (s) { st[s] = state.data[s]; });
-    return { app: 'My Salary Tracker', format: 2, version: VERSION, exportedAt: new Date().toISOString(), stores: st, settings: state.settings };
+    var out = { app: 'My Salary Tracker', format: 2, version: VERSION, exportedAt: new Date().toISOString(), stores: st, settings: state.settings }; var pfb = PF.forBackup(pf.saved); if (pfb) out.profile = pfb; return out;
   }
   async function freshData() { if (state.db) { try { await loadAll(); } catch (e) { /* keep the in-memory copy */ } } }   // another window may have written since this one loaded
   async function doBackup() {
@@ -683,7 +813,7 @@
       /* Recovery exports include localStorage separately; recover app settings from that backup too. */
       if (parsed && parsed.kind === 'recovery-export' && parsed.localStorage && !parsed.settings) { try { parsed.settings = JSON.parse(parsed.localStorage[SETTINGS_KEY] || '{}'); } catch (_) { parsed.settings = {}; } }
       var v = validateBackup(parsed); if (!v.ok) { toast(M('b_invalid', null, function () { return ' (' + describeErr(v.err) + ')'; })); return; }
-      state.pending = { v: v, name: f.name, safety: false };
+      state.pending = { v: v, name: f.name, safety: false, profile: PF.forBackup(parsed && parsed.profile) };
       $('rsInfo').innerHTML = '<div>' + safe(tr('b_file')) + ': <strong>' + safe(f.name) + '</strong></div>' + (v.exportedAt ? '<div>' + safe(tr('b_exported')) + ': ' + safe(v.exportedAt.slice(0, 16).replace('T', ' ')) + '</div>' : '') +
         '<div>' + STORES.map(function (s) { return safe(tr(s === 'work' ? 'workRecords' : s === 'payments' ? 'payments' : s === 'expenses' ? 'expenses' : s === 'remittances' ? 'remit' : 'given')) + ': ' + v.counts[s]; }).join('<br>') + '</div>';
       $('rsSafety').textContent = tr('b_safety'); $('rsSafety').classList.remove('step-done');
@@ -711,6 +841,7 @@
       if (!replace) { var plan = R.planMerge(payload, await getAll('work')); payload = plan.payload; skipped = plan.skipped; }
       await writeAll(payload, replace);                                  // one transaction: all or nothing
       if (pend.v.settings) { state.settings = pend.v.settings; persistSettings(); }
+      if (pend.profile) { var np = PF.fromBackup(pend.profile, pf.saved, replace), pr = np && PF.save(lsSafeOrDummy(), np); if (pr && pr.ok) { pf.saved = pr.profile; renderProfile(); } else if (pr) toast(tr('pf_errRestore')); }
       state.pending = null; closeDlg('restoreDlg'); await refresh();
       toast(function () { return tr(replace ? 'b_doneReplace' : 'b_doneMerge') + (skipped > 0 ? ' ' + tr('b_skipped', { n: skipped }) : ''); });
     } catch (e) { setMsg('rsErr', M('b_fail', null, ' (' + (e && e.message || e) + ')')); try { await refresh(); } catch (_) { } }
@@ -778,12 +909,12 @@
   /* ---------- events ---------- */
   function bind() {
     $('menuBtn').onclick = function () { openDlg('menu'); }; $('menuClose').onclick=function(){closeDlg('menu');}; $('menuDutyProgram').onclick=openProgram; $('saveProgram').onclick=saveProgram; $('dbRetry').onclick=function(){return initializeDatabase();}; $('balanceDetails').onclick=function(){switchView('reports');}; $('recentDetails').onclick=function(){switchView('money');}; $('programRest').onchange=function(){ $('programTimes').hidden=this.checked; }; $('programHistory').addEventListener('click',function(e){var b=e.target.closest('[data-program-edit]');if(!b)return;var p=state.data.dutyPrograms.find(function(x){return x.id===b.getAttribute('data-program-edit');});if(!p)return;$('programDate').value=p.date;$('programRest').checked=!!p.rest;$('programTimes').hidden=!!p.rest;$('programStart').value=p.start||'';$('programEnd').value=p.end||'';$('programBreak').value=p.breakMinutes||0;$('programOt').value=p.otHours||0;$('programPreview').textContent='Existing photo: '+(p.photo&&p.photo.name||'saved');});
-    $('menuUpdate').onclick=function(){closeDlg('menu');if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){navigator.serviceWorker.getRegistration().then(function(reg){if(reg)reg.update().catch(function(){});toast('Update check started. If an update is available, the app will prompt you.');}).catch(function(){toast('Could not check for updates.');});}else{toast('Update check is not supported in this browser.');}};$('privacyBtn').onclick=function(){closeDlg('menu');openDlg('privacyDlg');}; $('menuAccount').onclick=function(){closeDlg('menu');openDlg('accountDlg');};
+    $('menuUpdate').onclick=function(){closeDlg('menu');if(navigator.serviceWorker&&navigator.serviceWorker.getRegistration){navigator.serviceWorker.getRegistration().then(function(reg){if(reg)reg.update().catch(function(){});toast('Update check started. If an update is available, the app will prompt you.');}).catch(function(){toast('Could not check for updates.');});}else{toast('Update check is not supported in this browser.');}};$('privacyBtn').onclick=function(){closeDlg('menu');openDlg('privacyDlg');}; $('menuAccount').onclick=function(){closeDlg('menu');pfReset();openDlg('accountDlg');};
     document.querySelectorAll('[data-money-jump]').forEach(function(b){b.onclick=function(){var id=b.getAttribute('data-money-jump');document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});};});
-    document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); if(id==='backupSec') backupRevealFromMenu=true; switchView(id==='top'?'home':id==='reports'?'reports':id==='settings'?'settings':id==='work'?'work':'money');if(id==='people'||id==='backupSec'||id==='gifts'||id==='export')setTimeout(function(){var target=id==='export'?'backupSec':id;document.getElementById(target).scrollIntoView({behavior:'smooth',block:'start'});},80); }; });
+    document.querySelectorAll('[data-target]').forEach(function (b) { b.onclick = function () { closeDlg('menu'); var id = b.getAttribute('data-target'); if(id==='profile'){pfReset();openDlg('accountDlg');return;} if(id==='backupSec') backupRevealFromMenu=true; var view=(id==='top'?'home':id==='reports'?'reports':id==='settings'?'settings':id==='work'?'work':'money'); switchView(view); if(['remit','people','gifts','backupSec','export'].indexOf(id)>=0)setTimeout(function(){var target=id==='export'?'backupSec':id;var el=document.getElementById(target);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},120); }; });
     $('aboutBtn').onclick = function () { closeDlg('menu'); openDlg('aboutDlg'); };
-    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='ot'){ $('otDate').value=today(); $('otHoursAdd').value='1'; $('otErr').textContent=''; openDlg('otDialog'); }else openForm(k);};});
-    $('saveOt').onclick=async function(){if(!state.dbReady){$('otErr').textContent='Database is not ready. Tap Retry first.';return;}var date=$('otDate').value,add=Number($('otHoursAdd').value);if(!C.isDate(date)||!Number.isFinite(add)||add<=0||add>24){$('otErr').textContent='Enter a valid date and overtime amount (0.25–24 hours).';return;}try{var old=state.data.work.find(function(x){return x.date===date;});var rec=old?Object.assign({},old):{id:uid(),date:date,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,tips:0,note:''};if(C.normStatus(rec.status)!=='worked'){rec.status='worked';rec.hours=state.settings.standard;}if(rec.hours==null||Number(rec.hours)<=0)rec.hours=state.settings.standard;rec.otExtraHours=C.r2((rec.otExtraHours!==undefined&&rec.otExtraHours!==null?Number(rec.otExtraHours):Math.max(0,Number(rec.hours)-state.settings.standard))+add);if(rec.otExtraHours>24){$('otErr').textContent='Total overtime for this date cannot exceed 24 hours.';return;}await putWork(rec);closeDlg('otDialog');var mk=date.slice(0,7);if(mk!==viewMonth())state.month=new Date(+mk.slice(0,4),+mk.slice(5,7)-1,1);await refresh();toast(add+' overtime hour(s) added.');}catch(err){$('otErr').textContent='Could not save overtime: '+(err&&err.message||err);}};
+    document.querySelectorAll('[data-action]').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-action');closeDlg('quickAddDialog');if(k==='work'){openAddWork();return;}if(k==='ot'){ $('otDate').value=today(); $('otHoursAdd').value='1'; $('otErr').textContent=''; openDlg('otDialog'); }else openForm(k);};});
+    $('saveOt').onclick=guard('busyOt',async function(){if(!state.dbReady){$('otErr').textContent='Database is not ready. Tap Retry first.';return;}var date=$('otDate').value,add=Number($('otHoursAdd').value);if(!C.isDate(date)||!Number.isFinite(add)||add<=0||add>24){$('otErr').textContent='Enter a valid date and overtime amount (0.25–24 hours).';return;}try{var old=state.data.work.find(function(x){return x.date===date;});var rec=old?Object.assign({},old):{id:uid(),date:date,status:'worked',hours:state.settings.standard,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,tips:0,note:''};if(C.normStatus(rec.status)!=='worked'){rec.status='worked';rec.hours=state.settings.standard;}if(rec.hours==null||Number(rec.hours)<=0)rec.hours=state.settings.standard;rec.otExtraHours=C.r2((rec.otExtraHours!==undefined&&rec.otExtraHours!==null?Number(rec.otExtraHours):Math.max(0,Number(rec.hours)-state.settings.standard))+add);if(rec.otExtraHours>24){$('otErr').textContent='Total overtime for this date cannot exceed 24 hours.';return;}await putWork(rec);closeDlg('otDialog');var mk=date.slice(0,7);if(mk!==viewMonth())state.month=new Date(+mk.slice(0,4),+mk.slice(5,7)-1,1);await refresh();toast(add+' overtime hour(s) added.');}catch(err){$('otErr').textContent='Could not save overtime: '+(err&&err.message||err);}});
     document.querySelectorAll('[data-nav]').forEach(function(b){b.onclick=function(){var target=b.getAttribute('data-nav');if(target==='quickActions'){openDlg('quickAddDialog');return;}switchView(target==='top'?'home':target==='work'?'work':target==='payments'?'money':target==='reports'?'reports':'home');};});
     document.addEventListener('click', function (e) {
       var cl = e.target.closest('.closeDlg'); if (cl) { var dd = cl.closest('dialog'); if (dd) { if (dd.close) dd.close(); else dd.removeAttribute('open'); } return; }
@@ -791,22 +922,20 @@
       var b = e.target.closest('[data-edit]'); if (b) { if($('peopleDlg').open)closeDlg('peopleDlg');var k = b.getAttribute('data-edit'); openForm(k, findRec(k, b.getAttribute('data-id'), b.getAttribute('data-idt')) || {}); return; }
       var j = e.target.closest('[data-jump]'); if (j) { var t=j.getAttribute('data-jump'); switchView(t==='payments'?'money':t==='expenses'?'money':'work'); }
     });
-    $('record').onclick = function () { var tw = state.data.work.find(function (x) { return x.date === today(); }); openForm('work', tw || { date: today() }); };
-    $('quickDuty').onclick = quickBasicDuty; $('homeQuickDuty').onclick=quickBasicDuty;
+    $('quickDuty').onclick = quickBasicDuty; $('homeQuickDuty').onclick=quickBasicDuty; $('homeQuickNoDuty').onclick=quickNoDuty; $('editTodayStatus').onclick=editTodayStatus; $('saveQuickDutyHours').onclick=saveQuickDutyHours; $('addTipsHome').onclick=function(){ $('tipDate').value=today();$('tipAmount').value='';$('tipNote').value='';openDlg('tipsDialog');}; $('saveTip').onclick=guard('busyTip',async function(){var date=$('tipDate').value,amount=Number($('tipAmount').value),note=$('tipNote').value.trim();if(!C.isDate(date)||!Number.isFinite(amount)||amount<=0){toast('সঠিক তারিখ ও টাকার পরিমাণ দিন।');return;}try{await putTip({id:uid(),date:date,amount:C.r2(amount),note:note});closeDlg('tipsDialog');await refresh();toast('Tips যোগ হয়েছে।');}catch(e){toast('Tips সেভ হয়নি: '+(e.message||e));}});
     $('calendarToggle').onclick=function(){var panel=$('calendarPanel'),btn=$('calendarToggle'),open=panel.hidden;panel.hidden=!open;btn.setAttribute('aria-expanded',open?'true':'false');btn.textContent=tr(open?'hideCalendar':'showCalendar');};
     $('workPrev').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()-1,1);render();};$('workNext').onclick=function(){state.month=new Date(state.month.getFullYear(),state.month.getMonth()+1,1);render();};
     $('workCalendar').addEventListener('click',function(e){var b=e.target.closest('[data-cal-date]');if(!b)return;var dt=b.getAttribute('data-cal-date'),rec=state.data.work.find(function(x){return x.date===dt;});if(rec)openForm('work',rec);else openForm('work',{date:dt,status:'worked',hours:state.settings.standard,otExtraHours:0});});
     $('peopleList').addEventListener('click',function(e){var b=e.target.closest('[data-person]');if(b)openPerson(b.getAttribute('data-person'));});
     $('addPerson').onclick=function(){var name=prompt('নতুন ব্যক্তির নাম লিখুন।');if(name&&name.trim()){addPersonName(name.trim());renderPeople();openForm('gifts',{date:defaultDate(),person:name.trim(),currency:'EUR'});}};
     $('renamePerson').onclick=function(){renamePerson(state.personSelected);}; $('personDirectory').addEventListener('click',function(e){var b=e.target.closest('[data-person-rename]');if(b)renamePerson(b.getAttribute('data-person-rename'));});
-    $('addWork').onclick = function () { openForm('work'); }; $('addPayment').onclick = function () { openForm('payments'); }; $('addExpense').onclick = function () { openForm('expenses'); };
-    function buildBulkPreview(){var start=$('bulkStart').value,end=$('bulkEnd').value,box=$('bulkPreview'),err=$('bulkErr');box.innerHTML='';err.textContent='';if(!C.isDate(start)||!C.isDate(end)||end<start){err.textContent='সঠিক শুরুর ও শেষের তারিখ দিন।';return;}var dates;try{dates=C.datesBetween(start,end,120);}catch(rangeErr){err.textContent='একবারে সর্বোচ্চ ১২০ দিন নির্বাচন করুন এবং সঠিক তারিখ দিন।';box.innerHTML='';return;}var existing=state.data.work.map(function(x){return x.date;}),html='<p class="note">'+dates.length+' দিন দেখানো হচ্ছে। আগে রেকর্ড থাকলে নিষ্ক্রিয় থাকবে।</p>';dates.forEach(function(d){var has=existing.indexOf(d)>=0;html+='<label class="bulk-date-check"><input type="checkbox" class="bulk-pick" value="'+d+'" '+(has?'disabled':'checked')+'><span>'+d+(has?' · আগে থেকেই রেকর্ড আছে':'')+'</span></label>';});box.innerHTML=html;}
-    $('bulkWork').onclick=function(){ $('bulkStart').value='';$('bulkEnd').value='';$('bulkPreview').innerHTML='';$('bulkStatus').value='worked';$('bulkHours').value=state.settings.standard||8;$('bulkErr').textContent='';$('bulkHoursWrap').hidden=false;openDlg('bulkWorkDlg');};
-    $('bulkPreviewBtn').onclick=buildBulkPreview;
-    $('bulkStatus').onchange=function(){$('bulkHoursWrap').hidden=this.value!=='worked';};
-    $('bulkSave').onclick=async function(){var dates=Array.from(document.querySelectorAll('.bulk-pick:checked')).map(function(x){return x.value;}),status=$('bulkStatus').value,hours=Number($('bulkHours').value);if(!dates.length){$('bulkErr').textContent='প্রথমে তারিখের রেঞ্জ দেখান এবং অন্তত একটি দিন নির্বাচন করুন।';return;}if(status==='worked'&&(!Number.isFinite(hours)||hours<=0||hours>24)){$('bulkErr').textContent='Basic Duty hours 0.25–24 এর মধ্যে দিন।';return;}var existing=state.data.work.map(function(r){return r.date;}),fresh=dates.filter(function(d){return existing.indexOf(d)<0;});if(!fresh.length){$('bulkErr').textContent='সব নির্বাচিত তারিখে আগে থেকেই রেকর্ড আছে।';return;}try{for(var d of fresh){var rec={id:uid(),date:d,status:status,hours:status==='worked'?hours:0,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,otExtraHours:0,tips:0,note:''};await putWork(rec);}closeDlg('bulkWorkDlg');await refresh();toast(fresh.length+'টি দিনের রেকর্ড যোগ হয়েছে। Home-এর আয় বর্তমান মাসের হিসাব দেখাবে।');}catch(err){await refresh().catch(function(){});$('bulkErr').textContent='সংরক্ষণ করা যায়নি: '+(err.message||err)+'। সফলভাবে সেভ হওয়া দিনগুলো আবার যাচাই করুন।';buildBulkPreview();}};
+    $('addWork').onclick = function () { openAddWork(); }; $('addPayment').onclick = function () { openForm('payments'); }; $('addExpense').onclick = function () { openForm('expenses'); };
+    function buildBulkPreview(){var start=$('bulkStart').value,end=$('bulkEnd').value,box=$('bulkPreview'),err=$('bulkErr');box.innerHTML='';err.textContent='';if(!C.isDate(start)||!C.isDate(end)||end<start){err.textContent='সঠিক শুরুর ও শেষের তারিখ দিন।';return;}var dates;try{dates=C.datesBetween(start,end,120);}catch(rangeErr){err.textContent='একবারে সর্বোচ্চ ১২০ দিন নির্বাচন করুন এবং সঠিক তারিখ দিন।';return;}var existing=state.data.work.map(function(x){return x.date;}),statuses=[['worked','Worked / Basic Duty'],['rest','Rest Day'],['holiday','Holiday'],['unpaid_leave','Unpaid Leave']];dates.forEach(function(d){var has=existing.indexOf(d)>=0,row=document.createElement('div');row.className='bulk-date-row';row.dataset.date=d;row.innerHTML='<label class="bulk-date-check"><input type="checkbox" class="bulk-pick" '+(has?'disabled':'checked')+'><span>'+d+(has?' · আগে রেকর্ড আছে':'')+'</span></label><select class="bulk-row-status" '+(has?'disabled':'')+'>'+statuses.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>';}).join('')+'</select><input class="bulk-row-hours" type="number" min="0.25" max="24" step="0.25" value="'+(state.settings.standard||8)+'" aria-label="Hours" '+(has?'disabled':'')+'>';box.appendChild(row);});box.querySelectorAll('.bulk-row-status').forEach(function(sel){sel.onchange=function(){var h=sel.closest('.bulk-date-row').querySelector('.bulk-row-hours');h.hidden=sel.value!=='worked';};sel.dispatchEvent(new Event('change'));});}
+    $('bulkWork').onclick=function(){ $('bulkStart').value='';$('bulkEnd').value='';$('bulkPreview').innerHTML='';$('bulkErr').textContent='';openDlg('bulkWorkDlg');};
+    $('bulkPreviewBtn').onclick=buildBulkPreview; bindAddWork();
+    $('bulkSave').onclick=guard('busyBulk',async function(){var rows=Array.from(document.querySelectorAll('.bulk-date-row')).filter(function(r){return r.querySelector('.bulk-pick').checked;}),err=$('bulkErr');if(!rows.length){err.textContent='প্রথমে তারিখের রেঞ্জ দেখান এবং অন্তত একটি দিন নির্বাচন করুন।';return;}var existing=state.data.work.map(function(r){return r.date;}),fresh=rows.filter(function(r){return existing.indexOf(r.dataset.date)<0;}),records=[],bad=false;fresh.forEach(function(row){var status=row.querySelector('.bulk-row-status').value,hours=Number(row.querySelector('.bulk-row-hours').value);if(status==='worked'&&(!Number.isFinite(hours)||hours<0.25||hours>24)){bad=true;row.querySelector('.bulk-row-hours').focus();}records.push({id:uid(),date:row.dataset.date,status:status,hours:status==='worked'?hours:0,basicRate:state.settings.basic,standardHours:state.settings.standard,otRate:state.settings.otRate,busAllowanceRate:state.settings.bus,otExtraHours:status==='worked'?Math.max(0,C.r2(hours-state.settings.standard)):0,tips:0,note:''});});if(bad){err.textContent='Worked দিনের ঘণ্টা ০.২৫–২৪ এর মধ্যে দিন।';return;}if(!records.length){err.textContent='সব নির্বাচিত তারিখে আগে থেকেই রেকর্ড আছে।';return;}try{await putWorkBatch(records);closeDlg('bulkWorkDlg');await refresh();toast(records.length+' দিনের রেকর্ড একসাথে সেভ হয়েছে।');}catch(e){err.textContent='কোনো রেকর্ড সেভ হয়নি। '+(e.message||e);}});
 
-    $('editForm').addEventListener('submit', saveForm); $('fields').addEventListener('change',function(e){if(e.target.name==='person'&&e.target.value==='__add_person__'){var n=prompt('নতুন ব্যক্তির নাম লিখুন');if(n&&n.trim()){addPersonName(n.trim());var o=document.createElement('option');o.value=n.trim();o.textContent=n.trim();e.target.insertBefore(o,e.target.querySelector('[value=__add_person__]'));e.target.value=n.trim();}else e.target.value='';}});
+        $('editForm').addEventListener('submit', saveForm); $('fields').addEventListener('change',function(e){if(e.target.name==='person'&&e.target.value==='__add_person__'){var n=prompt('নতুন ব্যক্তির নাম লিখুন');if(n&&n.trim()){addPersonName(n.trim());var o=document.createElement('option');o.value=n.trim();o.textContent=n.trim();e.target.insertBefore(o,e.target.querySelector('[value=__add_person__]'));e.target.value=n.trim();}else e.target.value='';}});
     $('editDialog').addEventListener('close', function () { state.edit = null; });
     $('deleteBtn').onclick = async function () { if (state.edit && state.edit.id != null) { var k = state.edit.kind, rec = state.data[k].find(function (x) { return x.id === state.edit.id; }); closeDlg('editDialog'); await deleteRecord(k, rec); } };
     $('prev').onclick = function () { state.month = new Date(state.month.getFullYear(), state.month.getMonth() - 1, 1); render(); };
@@ -845,7 +974,7 @@
 
   /* ---------- start ---------- */
   async function init() {
-    loadSettings(); applyTheme(); bind(); safeRender(); renderDBBanner(); startClock();
+    loadSettings(); pfLoad(); applyTheme(); bind(); bindProfile(); safeRender(); renderDBBanner(); startClock();
     document.addEventListener('visibilitychange', function () { if (document.hidden) stopClock(); else startClock(); });
     registerSW();
     try { await initializeDatabase(); } catch (e) { state.dbError = e; renderDBBanner(); }

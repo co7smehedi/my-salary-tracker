@@ -1,7 +1,7 @@
-/* My Salary Tracker v9.5.14 - service worker. Network-first (so updates arrive quickly), cached copy when offline. It does not read or write any saved records. */
-const VERSION = '9.5.14';
+/* My Salary Tracker v9.7.1 - service worker. Network-first (so updates arrive quickly), cached copy when offline. It does not read or write any saved records. */
+const VERSION = '9.7.1';
 const CACHE = 'mst-v' + VERSION.replace(/\./g, '-');
-const CORE = ['./', './index.html', './style.css', './i18n.js', './calc.js', './backup-rules.js', './app.js', './recover.js', './manifest.json', './recover.html',
+const CORE = ['./', './index.html', './style.css', './i18n.js', './calc.js', './backup-rules.js', './profile.js', './app.js', './recover.js', './manifest.json', './recover.html',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {

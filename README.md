@@ -1,4 +1,43 @@
-# My Salary Tracker — version 9.5.12
+# My Salary Tracker — version 9.7.1
+
+## v9.7.1 — current-month Home totals correction
+- v9.7.0 features retained: hourly pay, overtime, Tips, calendar multi-date Add Work, settings/menu navigation, and local backup/restore.
+- Home dashboard monthly totals (basic income, worked days, overtime, Tips, expense, and bus allowance) are now fixed to the current calendar month, regardless of the selected Work/Report month.
+- Work lists and reports continue to use the selected month. Today's Earnings continues to show today's total.
+- A regression test was updated to check that navigating to another month and back does not change Home's current-month figures.
+
+**Changed as you asked:**
+- **Home:** *Today's Earnings* and the *Tips / This month's expense / OT income* tiles swapped places. Today's Earnings now sits inside the month card; the three tiles are the card below it. Nothing else on Home moved.
+- **Add work** (button, and Quick-add → Work) opens a **calendar**: Sunday-first, status dots like the Work page, today marked. Tap any days, including past days; each selected day gets its own hours (or one common value), or a status such as Rest/Holiday. *Today*, *Empty days up to today* and *Clear* buttons. A day that already has a record opens that record for editing instead of being overwritten. Saving is all-or-nothing and tolerates double taps. The old "many days" range screen is still there.
+
+**Not changed:** salary rules, existing records, backup format, design. No sample data is included.
+
+
+## v9.6.4 — Earnings calculation and menu navigation
+- Basic pay for worked days now prorates by hours worked up to standard hours (7h at €25/8h = €21.88); OT above standard hours is calculated separately.
+- Quick action label changed from Add OT to Overtime.
+- Menu shortcuts now include Remittance, Money given, People, and Profile & account; the shortcuts switch to the correct screen and scroll to the section.
+- Profile shortcut opens My Account directly.
+
+## v9.6.4 — Home summary and duty-hours popup
+- Removed the small monthly income tile from Home; Tips now occupies its position.
+- Monthly income is shown inside the Add Tips dialog.
+- Add Tips now saves standalone tip entries to the existing local IndexedDB tips store.
+- Worked-today opens a popup with only worked-hours input (default 8); saving records today. Hours above standard hours add overtime.
+- ZIP contains every app and test file at its root, with no enclosing project directory or tests subfolder.
+- Cache/version updated to 9.6.4.
+
+
+## v9.6.0 — My Account profile, simpler work form, new design layer
+- **Local profile** (My Account): full name, profile photo (Photo Library, Camera or Files through the normal iPhone picker), preview before saving, Change / Remove photo, Save / Cancel. Name and photo show in My Account and at the top of the menu. No photo: initials, or a default avatar.
+- **Privacy:** the profile is saved only in this browser's local storage (`mst-profile`). It is never uploaded. Photos are cropped to a square and shrunk to 256 px (JPEG) before saving. Storage errors (full, blocked) show a message and keep the old profile. IndexedDB (your salary records) is not touched.
+- **Backup / restore:** the backup file now has an optional `profile` field. Older backups without it still restore. Merge keeps the profile on the phone and only fills blanks; Replace takes the profile from the backup.
+- **Work form:** date, status and *Hours worked* only. The Overtime field is gone from this form (use the OT button). Editing a record keeps its overtime and tips.
+- **Work page:** big *Add work* button, quick buttons, two summary cards. Date fields no longer stretch past the edge of the dialog.
+- **Design:** new colours, SVG line icons instead of emoji (navigation, quick actions, menu), smoother dialogs.
+- **Sign-in / cloud accounts: NOT configured.** There are no sign-in buttons because nothing could honour them. See the notes in the chat reply about Firebase Authentication or Supabase.
+- New file: `profile.js` (upload it together with the others).
+
 
 ## v9.5.12 fixes
 - Rest Day, Holiday and Unpaid Leave hide Basic Duty hours and overtime fields. Non-work statuses save zero basic hours and zero overtime.
@@ -231,3 +270,8 @@ Country selection is independent from language. It changes the displayed currenc
 - Historical work saves no longer jump the app month.
 - Today duty button becomes disabled whenever a record already exists for today.
 - Bulk work entry supports date ranges with a per-date selection preview and skips existing dates.
+
+
+## v9.7.1 correction
+- Home dashboard monthly totals (basic income, worked days, OT, tips, expenses and bus allowance) are fixed to the current calendar month, independent of the selected Work/Report month. Work lists and report views continue to follow the selected month.
+- Added a regression test for month isolation when navigating previous/next months.
